@@ -450,3 +450,11 @@ optfile net	test/nettest.c
 ########################################
 defoption tlb
 optfile tlb	vm/vm_tlb.c 		
+
+########################################
+#                                      #
+#           PAGING SYSTEM              #
+#                                      #
+########################################
+defoption paging
+optfile paging	vm/pt.c 	

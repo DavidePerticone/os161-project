@@ -32,4 +32,5 @@ options sfs			# Always use the file system
 #options netfs			# You might write this as a project.
 
 options dumbvm			# Chewing gum and baling wire.
-options tlb
+options tlb             # Enable tlb replacement
+options paging          # Enable on-demand paging
