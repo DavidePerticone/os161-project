@@ -441,3 +441,12 @@ file		test/semunit.c
 file		test/kmalloctest.c
 file		test/fstest.c
 optfile net	test/nettest.c
+
+
+########################################
+#                                      #
+#                TLB                   #
+#                                      #
+########################################
+defoption tlb
+optfile tlb	vm/vm_tlb.c 		
