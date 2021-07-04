@@ -58,5 +58,14 @@ void free_kpages(vaddr_t addr);
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown(const struct tlbshootdown *);
 
+/*
+ *This function is intended to be used only once by the vm_bootstrap function
+ *in order to calculate how many physical page are available and bypass
+ *the usage of stealmem at least once for each page.
+ */
+
+paddr_t
+ram_getfirstfreeafterbootstrap(void);
+
 
 #endif /* _VM_H_ */

@@ -9,4 +9,5 @@ runprogram.o: ../../syscall/runprogram.c ../../include/types.h \
  includelinks/machine/thread.h ../../include/setjmp.h \
  includelinks/kern/machine/setjmp.h ../../include/addrspace.h \
  ../../include/vm.h includelinks/machine/vm.h opt-dumbvm.h \
- ../../include/vfs.h ../../include/syscall.h ../../include/test.h
+ opt-virtualmem.h ../../include/pt.h ../../include/vfs.h \
+ ../../include/syscall.h ../../include/test.h

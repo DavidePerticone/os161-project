@@ -8,5 +8,4 @@ int tlb_get_rr_victim(void);
 void as_activate(void);
 
 
-
 #endif

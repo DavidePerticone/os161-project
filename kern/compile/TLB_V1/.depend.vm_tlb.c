@@ -10,4 +10,4 @@ vm_tlb.o: ../../vm/vm_tlb.c ../../include/vm_tlb.h ../../include/types.h \
  ../../include/array.h includelinks/machine/thread.h \
  ../../include/setjmp.h includelinks/kern/machine/setjmp.h \
  includelinks/mips/tlb.h ../../include/addrspace.h ../../include/vm.h \
- opt-dumbvm.h
+ opt-dumbvm.h opt-virtualmem.h ../../include/pt.h

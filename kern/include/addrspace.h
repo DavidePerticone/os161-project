@@ -37,6 +37,10 @@
 
 #include <vm.h>
 #include "opt-dumbvm.h"
+#include "opt-virtualmem.h"
+#include <pt.h>
+
+#define DUMBVM_STACKPAGES 18
 
 struct vnode;
 
@@ -57,8 +61,15 @@ struct addrspace {
         paddr_t as_pbase2;
         size_t as_npages2;
         paddr_t as_stackpbase;
-#else
-        /* Put stuff here for your VM system */
+#endif
+        struct page_table proc_pt;
+        vaddr_t as_vbase1;
+        size_t as_npages1;
+        vaddr_t as_vbase2;
+        size_t as_npages2;
+
+#if OPT_VIRTUALMEM
+       
 #endif
 };
 

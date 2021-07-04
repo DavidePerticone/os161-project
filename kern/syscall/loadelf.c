@@ -59,6 +59,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <elf.h>
+#include <opt-virtualmem.h>
 
 /*
  * Load a segment at virtual address VADDR. The segment in memory
@@ -74,6 +75,8 @@
  * change this code to not use uiomove, be sure to check for this case
  * explicitly.
  */
+
+/*
 static
 int
 load_segment(struct addrspace *as, struct vnode *v,
@@ -109,12 +112,12 @@ load_segment(struct addrspace *as, struct vnode *v,
 	}
 
 	if (u.uio_resid != 0) {
-		/* short read; problem with executable? */
+		
 		kprintf("ELF: short read on segment - file truncated?\n");
 		return ENOEXEC;
 	}
 
-	/*
+	
 	 * If memsize > filesize, the remaining space should be
 	 * zero-filled. There is no need to do this explicitly,
 	 * because the VM system should provide pages that do not
@@ -127,7 +130,7 @@ load_segment(struct addrspace *as, struct vnode *v,
 	 * bugs, so the following disabled code is provided as a
 	 * diagnostic tool. Note that it must be disabled again before
 	 * you submit your code for grading.
-	 */
+	 
 #if 0
 	{
 		size_t fillamt;
@@ -143,7 +146,7 @@ load_segment(struct addrspace *as, struct vnode *v,
 #endif
 
 	return result;
-}
+}*/
 
 /*
  * Load an ELF executable user program into the current address space.
@@ -253,6 +256,8 @@ load_elf(struct vnode *v, vaddr_t *entrypoint)
 		}
 	}
 
+#if !OPT_VIRTUALMEM
+
 	result = as_prepare_load(as);
 	if (result) {
 		return result;
@@ -301,6 +306,7 @@ load_elf(struct vnode *v, vaddr_t *entrypoint)
 		return result;
 	}
 
+#endif
 	*entrypoint = eh.e_entry;
 
 	return 0;

@@ -342,7 +342,7 @@ file      proc/proc.c
 
 file      vm/kmalloc.c
 
-optofffile dumbvm   vm/addrspace.c
+
 
 #
 # Network
@@ -458,3 +458,12 @@ optfile tlb	vm/vm_tlb.c
 ########################################
 defoption paging
 optfile paging	vm/pt.c 	
+
+########################################
+#                                      #
+#           VM SYSTEM                  #
+#                                      #
+########################################
+defoption virtualmem
+optfile virtualmem   vm/addrspace.c
+

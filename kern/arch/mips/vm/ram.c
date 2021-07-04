@@ -130,6 +130,20 @@ ram_getsize(void)
 	return lastpaddr;
 }
 
+
+/*
+ *This function is intended to be used only once by the vm_bootstrap function
+ *in order to calculate how many physical page are available and bypass
+ *the usage of stealmem at least once for each page.
+ */
+
+paddr_t
+ram_getfirstfreeafterbootstrap(void){
+
+return firstpaddr;
+
+}
+
 /*
  * This function is intended to be called by the VM system when it
  * initializes in order to find out what memory it has available to

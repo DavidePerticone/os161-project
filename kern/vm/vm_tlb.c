@@ -27,6 +27,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	struct addrspace *as;
 	int spl;
     int victim;
+	int isDirty=TLBLO_DIRTY;
     static int count_tlb_miss = 0;
     static int count_tlb_miss_free = 0;
     static int count_tlb_miss_replace = 0;
@@ -74,17 +75,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	/* Assert that the address space has been set up properly. */
 	KASSERT(as->as_vbase1 != 0);
-	KASSERT(as->as_pbase1 != 0);
 	KASSERT(as->as_npages1 != 0);
 	KASSERT(as->as_vbase2 != 0);
-	KASSERT(as->as_pbase2 != 0);
 	KASSERT(as->as_npages2 != 0);
-	KASSERT(as->as_stackpbase != 0);
 	KASSERT((as->as_vbase1 & PAGE_FRAME) == as->as_vbase1);
-	KASSERT((as->as_pbase1 & PAGE_FRAME) == as->as_pbase1);
 	KASSERT((as->as_vbase2 & PAGE_FRAME) == as->as_vbase2);
-	KASSERT((as->as_pbase2 & PAGE_FRAME) == as->as_pbase2);
-	KASSERT((as->as_stackpbase & PAGE_FRAME) == as->as_stackpbase);
 
 	vbase1 = as->as_vbase1;
 	vtop1 = vbase1 + as->as_npages1 * PAGE_SIZE;
@@ -93,14 +88,16 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	stackbase = USERSTACK - DUMBVM_STACKPAGES * PAGE_SIZE;
 	stacktop = USERSTACK;
 
+	/* TODO: look-up in the page table */
 	if (faultaddress >= vbase1 && faultaddress < vtop1) {
-		paddr = (faultaddress - vbase1) + as->as_pbase1;
+		isDirty=0;
+		paddr = (faultaddress - vbase1) ;
 	}
 	else if (faultaddress >= vbase2 && faultaddress < vtop2) {
-		paddr = (faultaddress - vbase2) + as->as_pbase2;
+		paddr = (faultaddress - vbase2) ;
 	}
 	else if (faultaddress >= stackbase && faultaddress < stacktop) {
-		paddr = (faultaddress - stackbase) + as->as_stackpbase;
+		paddr = (faultaddress - stackbase) ;
 	}
 	else {
 		return EFAULT;
@@ -121,7 +118,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
         DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
 		ehi = faultaddress;
-		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+		elo = paddr | isDirty | TLBLO_VALID;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, i);
 		splx(spl);
@@ -135,7 +132,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
     ehi = faultaddress;
-    elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+    elo = paddr | isDirty | TLBLO_VALID;
 	DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 	tlb_write(ehi, elo, victim);
 	splx(spl);
@@ -152,27 +149,9 @@ int tlb_get_rr_victim(void){
     return victim;
 }
 
-
-void as_activate(void){
-	int i, spl;
-	struct addrspace *as;
-    static int num_invalid=0;
-
-    num_invalid++;
-	DEBUG(DB_VM, "TLB invalidations -> %d\n", num_invalid);
-
-
-	as = proc_getas();
-	if (as == NULL) {
-		return;
-	}
-
-	/* Disable interrupts on this CPU while frobbing the TLB. */
-	spl = splhigh();
-
-	for (i=0; i<NUM_TLB; i++) {
-		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
-	}
-
-	splx(spl);
+void
+vm_tlbshootdown(const struct tlbshootdown *ts)
+{
+	(void)ts;
+	panic("dumbvm tried to do tlb shootdown?!\n");
 }
