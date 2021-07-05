@@ -62,14 +62,13 @@ struct addrspace {
         size_t as_npages2;
         paddr_t as_stackpbase;
 #endif
-        struct page_table proc_pt;
+       
+
+#if OPT_VIRTUALMEM
         vaddr_t as_vbase1;
         size_t as_npages1;
         vaddr_t as_vbase2;
         size_t as_npages2;
-
-#if OPT_VIRTUALMEM
-       
 #endif
 };
 
@@ -125,7 +124,11 @@ int               as_define_region(struct addrspace *as,
                                    int readable,
                                    int writeable,
                                    int executable);
+#if OPT_VIRTUALMEM                                   
+int               as_prepare_load(unsigned npages);
+#else
 int               as_prepare_load(struct addrspace *as);
+#endif
 int               as_complete_load(struct addrspace *as);
 int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 

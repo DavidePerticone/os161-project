@@ -3,10 +3,10 @@
 
 #include <vm.h>
 
-#define VALID_MASK 0x80000000
+
+#define PID_MASK 0xFC000000
 /* Vaddr space can have at most 4GB/PAGE_SIZE entries, 
    that is the number of frames in the system */
-#define NUMBER_PAGES ((1024 * 1024)/PAGE_SIZE * 1024 * 4)
 
 
 /*
@@ -16,13 +16,18 @@
  * Each entry of the page table contains the physical address corresponsing to the index 
  * and the MSB is used as valid/invalid bit (set with VALID_MASK)
  */
-struct page_table
-{
-    unsigned int pt[NUMBER_PAGES];
+
+struct ipt_entry{
+pid_t pid;
+vaddr_t vaddr;
 };
 
-void copy_pt(struct page_table *old_pt, struct page_table *new_pt);
 
+
+int create_ipt(void);
+
+/* Given a pid and vaddr, get the physical frame, if in memory */
+paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr);
 
 
 

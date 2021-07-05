@@ -1,1 +1,0 @@
-davide@davide-HP-Spectre-x360-Convertible-15-df0xxx.20470:1625210019

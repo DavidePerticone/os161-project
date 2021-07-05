@@ -48,11 +48,63 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <opt-waitpid.h>
+
+#if OPT_WAITPID
+
+#define MAX_PROC 100
+static struct _processTable {
+  int active;           /* initial value 0 */
+  struct proc *proc[MAX_PROC+1]; /* [0] not used. pids are >= 1 */
+  int last_i;           /* index of last allocated pid */
+  struct spinlock lk;	/* Lock for this table */
+} processTable;
+
+#endif
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
+
+/*
+ * G.Cabodi - 2019
+ * Initialize support for pid/waitpid.
+ */
+static void
+proc_init_waitpid(struct proc *proc, const char *name) {
+#if OPT_WAITPID
+  /* search a free index in table using a circular strategy */
+  int i;
+  spinlock_acquire(&processTable.lk);
+  i = processTable.last_i+1;
+  proc->p_pid = 0;
+  if (i>MAX_PROC) i=1;
+  while (i!=processTable.last_i) {
+    if (processTable.proc[i] == NULL) {
+      processTable.proc[i] = proc;
+      processTable.last_i = i;
+      proc->p_pid = i;
+      break;
+    }
+    i++;
+    if (i>MAX_PROC) i=1;
+  }
+  spinlock_release(&processTable.lk);
+  if (proc->p_pid==0) {
+    panic("too many processes. proc table is full\n");
+  }
+  proc->p_status = 0;
+
+	(void)name;
+
+
+#else
+  (void)proc;
+  (void)name;
+#endif
+}
+
 
 /*
  * Create a proc structure.
@@ -81,6 +133,9 @@ proc_create(const char *name)
 
 	/* VFS fields */
 	proc->p_cwd = NULL;
+
+	proc_init_waitpid(proc,name);
+
 
 	return proc;
 }
@@ -182,6 +237,11 @@ proc_bootstrap(void)
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+	#if OPT_WAITPID
+	spinlock_init(&processTable.lk);
+	/* kernel process is not registered in the table */
+	processTable.active = 1;
+	#endif
 }
 
 /*

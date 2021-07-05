@@ -34,3 +34,4 @@ options sfs			# Always use the file system
 options tlb             # Enable tlb replacement
 options paging          # Enable on-demand paging
 options virtualmem      # Enable new vm system
+options waitpid         # Adds pid to proc structure

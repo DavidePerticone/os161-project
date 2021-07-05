@@ -27,7 +27,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	struct addrspace *as;
 	int spl;
     int victim;
-	int isDirty=TLBLO_DIRTY;
+	int isDirty=-1;
+	int segment;
     static int count_tlb_miss = 0;
     static int count_tlb_miss_free = 0;
     static int count_tlb_miss_replace = 0;
@@ -88,21 +89,50 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	stackbase = USERSTACK - DUMBVM_STACKPAGES * PAGE_SIZE;
 	stacktop = USERSTACK;
 
-	/* TODO: look-up in the page table */
 	if (faultaddress >= vbase1 && faultaddress < vtop1) {
 		isDirty=0;
-		paddr = (faultaddress - vbase1) ;
+		segment=0;
 	}
 	else if (faultaddress >= vbase2 && faultaddress < vtop2) {
-		paddr = (faultaddress - vbase2) ;
+		isDirty=TLBLO_DIRTY;
+		segment=1;
 	}
 	else if (faultaddress >= stackbase && faultaddress < stacktop) {
-		paddr = (faultaddress - stackbase) ;
+		isDirty=TLBLO_DIRTY;
+		segment=2;
 	}
 	else {
 		return EFAULT;
 	}
 
+	KASSERT(isDirty != -1);
+
+
+
+	/* check if page is in memory */
+	paddr = ipt_lookup(curproc->p_pid, faultaddress);
+
+	if(paddr == NULL){
+
+		
+		if(segment == 1 || segment == 0){
+
+			vaddr_t pag;
+			pag=faultaddress-(segment ? curproc->p_addrspace->as_vbase2 : curproc->p_addrspace->as_vbase1);
+
+
+			paddr = as_prepare_load(1);
+			KASSERT(paddr != 0);
+			int load_page(pag, paddr, segment);
+		}else{
+				/* stack */
+		}
+
+	
+		
+
+	}
+		
 	/* make sure it's page-aligned */
 	KASSERT((paddr & PAGE_FRAME) == paddr);
 

@@ -37,6 +37,8 @@
  */
 
 #include <spinlock.h>
+#include <opt-waitpid.h>
+#include <opt-virtualmem.h>
 
 struct addrspace;
 struct thread;
@@ -70,7 +72,14 @@ struct proc {
 	/* VFS */
 	struct vnode *p_cwd;		/* current working directory */
 
-	/* add more material here as needed */
+	#if OPT_WAITPID
+        int p_status;                   /* status as obtained by exit() */
+        pid_t p_pid;                    /* process pid */
+	#endif
+
+	#if OPT_VIRTUALMEM
+		Elf_Ehdr p_eh;
+	#endif
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

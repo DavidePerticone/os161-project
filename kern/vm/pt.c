@@ -13,19 +13,52 @@
 #include <types.h>
 #include <pt.h>
 
-/* copy a page table into another one */
-void copy_pt(struct page_table *old_pt, struct page_table *new_pt){
+
+/* inverted page table */
+static struct ipt_entry *ipt;
+static int nRamFrames;
+
+int create_ipt(void){
+
+    int i;
+    nRamFrames = ((int)ram_getsize())/PAGE_SIZE; 
+    KASSERT(nRamFrames != 0);
+    ipt=kmalloc(sizeof(struct ipt_entry)*nRamFrames);
+
+    if(ipt == NULL){
+        return -1;
+    }
+
+    for(i=0; i<nRamFrames; i++){
+        ipt[i].pid=-1;
+    }
+
+    return 0;
+
+}
+
+/* Given a pid and vaddr, get the physical frame, if in memory */
+/* TODO: Speed up linear search */
+
+paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr) {
+
+    KASSERT(pid >= 0);
+    KASSERT(vaddr != NULL);
 
     int i;
 
-    KASSERT(old_pt != NULL);
-    KASSERT(new_pt != NULL);
-
-    for (i = 0; i < NUMBER_PAGES; i++)
-    {
-        /* copy page table */
-        new_pt->pt[i] = old_pt->pt[i];
+    for(i=0; i<nRamFrames; i++){
+        if(ipt[i].pid == pid){
+            if(ipt[i].vaddr == vaddr){
+                /* if frame is in memory return its physical address */
+                return (paddr_t)i*PAGE_SIZE;
+            }
+        }
     }
 
+    /* return NULL in case the frame is not in memory */
+    return NULL;
 
 }
+
+

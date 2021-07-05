@@ -38,6 +38,7 @@
 #include <spinlock.h>
 #include <current.h>
 #include <mips/tlb.h>
+#include <pt.h>
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
  * assignment, this file is not compiled or linked or in any way
@@ -65,7 +66,11 @@ vm_bootstrap(void)
   int i;
   paddr_t firstpaddr, addr;
   int occupiedpages, freepages;
-  nRamFrames = ((int)ram_getsize())/PAGE_SIZE;  
+  nRamFrames = ((int)ram_getsize())/PAGE_SIZE; 
+  kprintf("ram_getsize(): %d\n", (int)ram_getsize());
+  kprintf("RamFrames: %d\n", nRamFrames);
+  /* alloc inverted page table */
+  if(create_ipt()==-1) return;
   /* alloc freeRamFrame and allocSize */  
   freeRamFrames = kmalloc(sizeof(unsigned char)*nRamFrames);
   if (freeRamFrames==NULL) return;  
@@ -208,7 +213,6 @@ free_kpages(vaddr_t addr){
 struct addrspace *
 as_create(void)
 {
-	int i;
     struct addrspace *as;
 
     as = kmalloc(sizeof(struct addrspace));
@@ -217,11 +221,8 @@ as_create(void)
         return NULL;
     }
 
-    for (i = 0; i < NUMBER_PAGES; i++)
-    {
-        /* set all pages as invalid -- pure demand loading */
-        as->proc_pt.pt[i] &= !VALID_MASK;
-    }
+    as->as_vbase1=0;
+    as->as_vbase2=0;
 
     return as;
 
@@ -248,10 +249,6 @@ int as_copy(struct addrspace *old, struct addrspace **ret)
     newas->as_npages1 = old->as_npages1;
     newas->as_vbase2 = old->as_vbase2;
     newas->as_npages2 = old->as_npages2;
-
-    copy_pt(&(old->proc_pt), &(newas->proc_pt));
-
-
 
     *ret = newas;
     return 0;
@@ -347,25 +344,17 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 }
 
 int
-as_prepare_load(struct addrspace *as)
+as_prepare_load(unsigned npages)
 {
-	/*
-	 * Write this.
-	 */
-
-	(void)as;
-	return 0;
+	return getppages(npages);
 }
 
 int
 as_complete_load(struct addrspace *as)
 {
-	/*
-	 * Write this.
-	 */
-
-	(void)as;
-	return 0;
+	  vm_can_sleep();
+     (void)as;
+     return 0;
 }
 
 
