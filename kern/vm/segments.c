@@ -12,7 +12,6 @@
 #include <segments.h>
 #include <vfs.h>
 
-
 /*
  * Load a segment at virtual address VADDR. The segment in memory
  * extends from VADDR up to (but not including) VADDR+MEMSIZE. The
@@ -82,14 +81,15 @@ load_segment(struct addrspace *as, struct vnode *v,
 	 * diagnostic tool. Note that it must be disabled again before
 	 * you submit your code for grading.*/
 
-#if 0
+#if 1
 	{
 		size_t fillamt;
 
 		fillamt = memsize - filesize;
-		if (fillamt > 0) {
+		if (fillamt > 0)
+		{
 			DEBUG(DB_EXEC, "ELF: Zero-filling %lu more bytes\n",
-			      (unsigned long) fillamt);
+				  (unsigned long)fillamt);
 			u.uio_resid += fillamt;
 			result = uiomovezeros(fillamt, &u);
 		}
@@ -99,13 +99,10 @@ load_segment(struct addrspace *as, struct vnode *v,
 	return result;
 }
 
-
-
-
-
 int load_page(vaddr_t page, vaddr_t vaddr, int segment)
 {
 
+	int bytes_toread_from_file;
 	struct vnode *v;
 	int result;
 	struct iovec iov;
@@ -152,13 +149,40 @@ int load_page(vaddr_t page, vaddr_t vaddr, int segment)
 				ph.p_type);
 		return ENOEXEC;
 	}
-	
+
 	/* must be equal */
 	KASSERT(vaddr == ((ph.p_vaddr & PAGE_FRAME) + page));
-	/* load the needed page */
-	result = load_segment(curproc->p_addrspace, v, ph.p_offset+page, vaddr /* TODO: modify */,
-						  PAGE_SIZE, PAGE_SIZE,
-						  ph.p_flags & PF_X);
+	/* prepare data to give to load_segment */
+
+	/* if the page we want is greater than the segment size, it means that we have to just allocate an empty page */
+	if (page >= ph.p_filesz)
+	{
+		result = 0;
+	}
+	else /* else, we have to read from file */
+	{
+		/* 
+		 * load the needed page .
+		 */
+		
+		/*
+		 * if  ph.p_filesz-page (segment size minus offset of page) is less than PAGE_SIZE, 
+		 * read the remaning part (less than PAGE_SIZE)
+		 */		
+		if (ph.p_filesz - page < PAGE_SIZE)
+		{
+			bytes_toread_from_file = ph.p_filesz - page;
+		}
+		/* read PAGE_SIZE */
+		else
+		{
+			bytes_toread_from_file = PAGE_SIZE;
+		}
+		result = load_segment(curproc->p_addrspace, v, ph.p_offset + page, vaddr,
+							  PAGE_SIZE, bytes_toread_from_file,
+							  ph.p_flags & PF_X);
+	}
+
 	if (result)
 	{
 		return result;

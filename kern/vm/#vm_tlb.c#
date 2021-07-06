@@ -26,8 +26,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	struct addrspace *as;
 	int spl;
 	int victim;
+	int isDirty = -1;
 	int segment;
-	int tlb_entry;
 	int result;
 	static int count_tlb_miss = 0;
 	static int count_tlb_miss_free = 0;
@@ -91,17 +91,21 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	/* understand in which segment we are, so as to behave accordingly */
 	if (faultaddress >= vbase1 && faultaddress < vtop1)
 	{
+		/* if we are in code segment, set TLB dirty bit as 0 -> PAGE_READONLY */
+		isDirty = 0; /* TO REVIEW AND PUT MASK */
 		/* we are in segment one (due to ELF file segments division)*/
-		segment = 1;
+ 		segment = 1;
 	}
 	else if (faultaddress >= vbase2 && faultaddress < vtop2)
 	{
 		/* data segmente, RW segment */
+		isDirty = TLBLO_DIRTY;
 		segment = 2;
 	}
 	else if (faultaddress >= stackbase && faultaddress < stacktop)
 	{
 		/* stack segment, RW segment */
+		isDirty = TLBLO_DIRTY;
 		segment = 3;
 	}
 	else
@@ -109,10 +113,15 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 
+
+
+	/* must be different from the default value */
+	KASSERT(isDirty != -1);
+
 	/* check if page is in memory */
 	paddr = ipt_lookup(curproc->p_pid, faultaddress);
 	/* if it is in memory, paddr will be different than 0 */
-
+	
 	if (paddr == 0)
 	/* page not in ipt */
 	{
@@ -122,7 +131,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* page_offset_from_segbase will store the offset of the desired page from the offset of the segment */
 			vaddr_t page_offset_from_segbase;
 			/* faultaddress is at page multiple, if we subtract the segment address we find the offset from the segment base */
-			page_offset_from_segbase = faultaddress - (segment == 1 ? as->as_vbase1 : as->as_vbase2);
+			page_offset_from_segbase = faultaddress - (segment == 1 ? curproc->p_addrspace->as_vbase1 : curproc->p_addrspace->as_vbase2);
 
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
@@ -157,6 +166,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				}
 				count_tlb_miss_free++;
 				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
+
 				ehi = faultaddress;
 				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
@@ -188,75 +198,13 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				return -1;
 			}
 			/* after loading the page, set the entry to READ_ONLY in case of code page */
-			if (segment == 1)
-			{
-				/* Disable interrupts on this CPU while frobbing the TLB. */
-				spl = splhigh();
-				tlb_entry = tlb_probe(ehi, 0);
-				KASSERT( tlb_entry >= 0);
-				/* use !TLB0_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
-				tlb_write(ehi, elo & !TLBLO_DIRTY, tlb_entry);
-				splx(spl);
-			}
+//			tlb_write(ehi, elo & isDirty, i-1); set isDirty
 			return 0;
 		}
 		else
 		{
-			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
-			paddr = as_prepare_load(1);
-			/* we need a page, paddr cannot be 0! */
-			KASSERT(paddr != 0);
-			/* 
-			 * 
-			 */
-			result = ipt_add(curproc->p_pid, paddr, faultaddress);
-			if (result)
-			{
-				return -1;
-			}
-
-			/* make sure it's page-aligned */
-			KASSERT((paddr & PAGE_FRAME) == paddr);
-
-			/* Disable interrupts on this CPU while frobbing the TLB. */
-			spl = splhigh();
-
-			/* add entry in the TLB */
-			for (i = 0; i < NUM_TLB; i++)
-			{
-				tlb_read(&ehi, &elo, i);
-				if (elo & TLBLO_VALID)
-				{
-					continue;
-				}
-				count_tlb_miss_free++;
-				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
-
-				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
-				tlb_write(ehi, elo, i);
-				splx(spl);
-				break;
-			}
-			/* if all entry are occupied, find a victim and replace it */
-			if (i == NUM_TLB)
-			{
-				/*select a victim to be replaced*/
-				victim = tlb_get_rr_victim();
-
-				/*write on the victim entry the new value*/
-				count_tlb_miss_replace++;
-				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
-
-				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
-				tlb_write(ehi, elo, victim);
-				splx(spl);
-			}
+			/* stack */
 		}
-		return 0;
 	}
 
 	/* make sure it's page-aligned */
