@@ -475,4 +475,13 @@ optfile virtualmem vm/segments.c
 ########################################
 defoption waitpid
 
+########################################
+#                                      #
+#           SYS CALLS	               #
+#                                      #
+########################################
+defoption syscalls
+optfile syscalls syscall/file_syscalls.c
+optfile syscalls syscall/proc_syscalls.c
+
 
