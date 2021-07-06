@@ -6,7 +6,7 @@ vfscwd.o: ../../vfs/vfscwd.c ../../include/types.h \
  opt-noasserts.h ../../include/uio.h ../../include/kern/iovec.h \
  ../../include/proc.h ../../include/spinlock.h ../../include/hangman.h \
  opt-hangman.h includelinks/machine/spinlock.h opt-waitpid.h \
- ../../include/current.h includelinks/machine/current.h \
+ opt-virtualmem.h ../../include/current.h includelinks/machine/current.h \
  ../../include/thread.h ../../include/array.h ../../include/threadlist.h \
  includelinks/machine/thread.h ../../include/setjmp.h \
  includelinks/kern/machine/setjmp.h ../../include/vfs.h \
