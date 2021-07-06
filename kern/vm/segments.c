@@ -120,6 +120,7 @@ int load_page(vaddr_t page, vaddr_t vaddr, int segment)
 		return result;
 	}
 
+	/* read the program header for the needed segment */
 	off_t offset = eh.e_phoff + segment * eh.e_phentsize;
 	uio_kinit(&iov, &ku, &ph, sizeof(ph), offset, UIO_READ);
 
@@ -152,7 +153,9 @@ int load_page(vaddr_t page, vaddr_t vaddr, int segment)
 		return ENOEXEC;
 	}
 	
+	/* must be equal */
 	KASSERT(vaddr == ((ph.p_vaddr+page)));
+	/* load the needed page */
 	result = load_segment(curproc->p_addrspace, v, ph.p_offset+page, ph.p_vaddr+page /* TODO: modify */,
 						  PAGE_SIZE, PAGE_SIZE,
 						  ph.p_flags & PF_X);

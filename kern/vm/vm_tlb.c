@@ -88,19 +88,23 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	stackbase = USERSTACK - DUMBVM_STACKPAGES * PAGE_SIZE;
 	stacktop = USERSTACK;
 
-	/* TODO: change segment numeration, segment 0 in eh header is always skipped, so should start from 1 */
+	/* understand in which segment we are, so as to behave accordingly */
 	if (faultaddress >= vbase1 && faultaddress < vtop1)
 	{
+		/* if we are in code segment, set TLB dirty bit as 0 -> PAGE_READONLY */
 		isDirty = 0; /* TO REVIEW AND PUT MASK */
-		segment = 1;
+		/* we are in segment one (due to ELF file segments division)*/
+ 		segment = 1;
 	}
 	else if (faultaddress >= vbase2 && faultaddress < vtop2)
 	{
+		/* data segmente, RW segment */
 		isDirty = TLBLO_DIRTY;
 		segment = 2;
 	}
 	else if (faultaddress >= stackbase && faultaddress < stacktop)
 	{
+		/* stack segment, RW segment */
 		isDirty = TLBLO_DIRTY;
 		segment = 3;
 	}
@@ -109,23 +113,35 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 
+	/* must be different from the default value */
 	KASSERT(isDirty != -1);
 
 	/* check if page is in memory */
 	paddr = ipt_lookup(curproc->p_pid, faultaddress);
-
+	/* if it is in memory, paddr will be different than 0 */
+	
 	if (paddr == 0)
+	/* page not in ipt */
 	{
-
+		/* are we in code or data segment? then, we should load the needed page */
 		if (segment == 1 || segment == 2)
 		{
+			/* page_offset_from_segbase will store the offset of the desired page from the offset of the segment */
+			vaddr_t page_offset_from_segbase;
+			/* faultaddress is at page multiple, if we subtract the segment address we find the offset from the segment base */
+			page_offset_from_segbase = faultaddress - (segment == 1 ? curproc->p_addrspace->as_vbase1 : curproc->p_addrspace->as_vbase2);
 
-			vaddr_t pag;
-			pag = faultaddress - (segment == 1 ? curproc->p_addrspace->as_vbase1 : curproc->p_addrspace->as_vbase2);
-
+			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
+			/* we need a page, paddr cannot be 0! */
 			KASSERT(paddr != 0);
-			/* first set ipt and TLB, otherwise cannot do translation while loading page */
+			/* 
+			 * first set ipt and TLB, otherwise cannot do translation while loading page
+			 * in particular, within emu_doread, when callind memcpy, the translation is
+			 * done when assigning from kernel buffer to user buffer (by the MMU that consults the TLB).
+			 * Therefore, and entry is needed in the TLB even though the page is not yet loaded.
+			 * Just not to forget, add the entry in the IPT
+			 */
 			result = ipt_add(curproc->p_pid, paddr, faultaddress);
 			if (result)
 			{
@@ -138,6 +154,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* Disable interrupts on this CPU while frobbing the TLB. */
 			spl = splhigh();
 
+			/* add entry in the TLB */
 			for (i = 0; i < NUM_TLB; i++)
 			{
 				tlb_read(&ehi, &elo, i);
@@ -155,6 +172,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				splx(spl);
 				break;
 			}
+			/* if all entry are occupied, find a victim and replace it */
 			if (i == NUM_TLB)
 			{
 				/*select a victim to be replaced*/
@@ -172,11 +190,12 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			}
 
 			/* load page at vaddr = faultaddress */
-			result = load_page(pag, faultaddress, segment);
+			result = load_page(page_offset_from_segbase, faultaddress, segment);
 			if (result)
 			{
 				return -1;
 			}
+			/* after loading the page, set the entry to READ_ONLY in case of code page */
 //			tlb_write(ehi, elo & isDirty, i-1); set isDirty
 			return 0;
 		}
