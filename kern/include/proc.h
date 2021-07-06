@@ -39,7 +39,7 @@
 #include <spinlock.h>
 #include <opt-waitpid.h>
 #include <opt-virtualmem.h>
-
+#include <elf.h>
 struct addrspace;
 struct thread;
 struct vnode;

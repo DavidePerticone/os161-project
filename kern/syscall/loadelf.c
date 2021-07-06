@@ -60,6 +60,8 @@
 #include <elf.h>
 #include <opt-virtualmem.h>
 #include <kern/fcntl.h>
+
+#if !OPT_VIRTUALMEM
 /*
  * Load a segment at virtual address VADDR. The segment in memory
  * extends from VADDR up to (but not including) VADDR+MEMSIZE. The
@@ -146,6 +148,8 @@ load_segment(struct addrspace *as, struct vnode *v,
 
 	return result;
 }
+
+#endif
 
 /*
  * Load an ELF executable user program into the current address space.
@@ -332,74 +336,6 @@ int load_elf(struct vnode *v, vaddr_t *entrypoint)
 
 #endif
 	*entrypoint = eh.e_entry;
-
-	return 0;
-}
-
-int load_page(vaddr_t page, paddr_t frame, int segment)
-{
-
-	int i;
-	struct vnode *v;
-	vaddr_t entrypoint, stackptr;
-	int result;
-	struct iovec iov;
-	struct uio ku;
-	Elf_Ehdr eh = curproc->p_eh;
-	Elf_Phdr ph;
-
-	/* Open the file. */
-	result = vfs_open(curproc->p_name, O_RDONLY, 0, &v);
-	if (result)
-	{
-		return result;
-	}
-
-	off_t offset = eh.e_phoff + segment * eh.e_phentsize;
-	uio_kinit(&iov, &ku, &ph, sizeof(ph), offset, UIO_READ);
-
-	result = VOP_READ(v, &ku);
-	if (result)
-	{
-		return result;
-	}
-
-	if (ku.uio_resid != 0)
-	{
-		/* short read; problem with executable? */
-		kprintf("ELF: short read on phdr - file truncated?\n");
-		return ENOEXEC;
-	}
-
-	switch (ph.p_type)
-	{
-	case PT_NULL: /* skip */
-		continue;
-	case PT_PHDR: /* skip */
-		continue;
-	case PT_MIPS_REGINFO: /* skip */
-		continue;
-	case PT_LOAD:
-		break;
-	default:
-		kprintf("loadelf: unknown segment type %d\n",
-				ph.p_type);
-		return ENOEXEC;
-	}
-
-	result = load_segment(curproc->p_addrspace, v, ph.p_offset + page * PAGE_SIZE, frame /* TODO: modify */,
-						  PAGE_SIZE, PAGE_SIZE,
-						  ph.p_flags & PF_X);
-	if (result)
-	{
-		return result;
-	}
-
-	result = as_complete_load(curproc->p_addrspace);
-	if (result)
-	{
-		return result;
-	}
 
 	return 0;
 }
