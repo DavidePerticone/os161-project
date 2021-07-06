@@ -28,7 +28,8 @@ int create_ipt(void);
 
 /* Given a pid and vaddr, get the physical frame, if in memory */
 paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr);
-
+/* set an entry in the ipt */
+int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr);
 
 
 #endif

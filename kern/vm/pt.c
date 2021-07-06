@@ -43,7 +43,7 @@ int create_ipt(void){
 paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr) {
 
     KASSERT(pid >= 0);
-    KASSERT(vaddr != NULL);
+    KASSERT(vaddr != 0);
 
     int i;
 
@@ -56,9 +56,25 @@ paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr) {
         }
     }
 
-    /* return NULL in case the frame is not in memory */
-    return NULL;
+    /* return 0 in case the frame is not in memory */
+    return 0;
 
 }
 
+int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr){
 
+    int frame_index;
+
+    KASSERT(pid >= 0);
+    KASSERT(paddr != 0);
+    KASSERT(vaddr != 0);
+    
+    frame_index = paddr/PAGE_SIZE;
+    KASSERT(frame_index <= nRamFrames);
+
+    ipt[frame_index].pid=pid;
+    ipt[frame_index].vaddr=vaddr;
+
+return 0;
+
+}
