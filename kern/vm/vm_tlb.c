@@ -12,6 +12,10 @@
 #include <vm.h>
 #include <types.h>
 #include <segments.h>
+#include <thread.h>
+#include <addrspace.h>
+
+
 
 /* under dumbvm, always have 72k of user stack */
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
@@ -46,6 +50,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	case VM_FAULT_READONLY:
 		/* We always create pages read-write, so we can't get this */
 		/* TODO: terminate the process instead of panicking */
+		kprintf("ciaoo ----");
+		return EINVAL;
 		panic("dumbvm: got VM_FAULT_READONLY\n");
 	case VM_FAULT_READ:
 	case VM_FAULT_WRITE:
@@ -128,8 +134,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
 			/* if all pages are occupied, use victim */
-			if(paddr == 0){
-				paddr=get_victim();
+			if (paddr == 0)
+			{
+				paddr = get_victim();
 			}
 
 			KASSERT(paddr != 0);
@@ -163,7 +170,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				count_tlb_miss_free++;
 				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, i);
 				splx(spl);
@@ -180,7 +187,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, victim);
 				splx(spl);
@@ -198,8 +205,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				/* Disable interrupts on this CPU while frobbing the TLB. */
 				spl = splhigh();
 				tlb_entry = tlb_probe(ehi, 0);
-				KASSERT( tlb_entry >= 0);
-				/* use !TLB0_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
+				KASSERT(tlb_entry >= 0);
+				/* use !TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
 				tlb_write(ehi, elo & !TLBLO_DIRTY, tlb_entry);
 				splx(spl);
 			}
@@ -209,9 +216,10 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		{
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-			
-			if(paddr == 0){
-				paddr=get_victim();
+
+			if (paddr == 0)
+			{
+				paddr = get_victim();
 			}
 
 			KASSERT(paddr != 0);
@@ -242,7 +250,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
 				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, i);
 				splx(spl);
@@ -259,7 +267,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, victim);
 				splx(spl);
@@ -285,7 +293,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
 		ehi = faultaddress;
-		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+		elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, i);
 		splx(spl);
@@ -299,7 +307,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 	ehi = faultaddress;
-	elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+	elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
 	DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 	tlb_write(ehi, elo, victim);
 	splx(spl);
