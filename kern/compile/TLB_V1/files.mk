@@ -122,4 +122,5 @@ SRCS+=$(KTOP)/vm/addrspace.c
 SRCS+=$(KTOP)/vm/kmalloc.c
 SRCS+=$(KTOP)/vm/pt.c
 SRCS+=$(KTOP)/vm/segments.c
+SRCS+=$(KTOP)/vm/swapfile.c
 SRCS+=$(KTOP)/vm/vm_tlb.c

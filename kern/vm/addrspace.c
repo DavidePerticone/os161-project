@@ -66,6 +66,7 @@ void vm_bootstrap(void)
   int i;
   paddr_t firstpaddr, addr;
   int occupiedpages, freepages;
+ // int result;
   nRamFrames = ((int)ram_getsize()) / PAGE_SIZE;
   kprintf("ram_getsize(): %d\n", (int)ram_getsize());
   kprintf("RamFrames: %d\n", nRamFrames);
@@ -94,6 +95,10 @@ void vm_bootstrap(void)
   /*allocation and deallocation of all ram to avoid using ram_stealmem*/
   firstpaddr = ram_getfirstfreeafterbootstrap(); /* get address of first free page */
   occupiedpages = ((int)firstpaddr) / PAGE_SIZE; /* calculate occupied pages by kernel */
+  //result=init_victim(occupiedpages); /* set first victim to the first available page (not used by kernel) */
+  init_victim(0x3b000 / PAGE_SIZE);
+  //KASSERT(result=occupiedpages);
+
   freepages = nRamFrames - occupiedpages;        /* calculate free pages remaining*/
   addr = alloc_kpages(freepages);                /*allocate all pages available*/
   free_kpages(addr);                             /* deallocate all pages previously allocated */
@@ -175,6 +180,7 @@ getppages(unsigned long npages)
     spinlock_release(&freemem_lock);
   }
 
+  
   return addr;
 }
 
@@ -194,6 +200,11 @@ freeppages(paddr_t addr, unsigned long npages)
   {
     freeRamFrames[i] = (unsigned char)1;
   }
+
+  /* zero fill page 
+  for(int i=0; i<(long)(PAGE_SIZE*npages); i++){
+      ((char*)addr)[i]=0;
+  }*/
   spinlock_release(&freemem_lock);
 
   return 1;

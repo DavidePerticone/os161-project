@@ -470,6 +470,15 @@ optfile virtualmem vm/segments.c
 
 ########################################
 #                                      #
+#           SWAPFILE                   #
+#                                      #
+########################################
+defoption swapfile
+optfile swapfile   vm/swapfile.c
+
+
+########################################
+#                                      #
 #           PID IN PROCESS             #
 #                                      #
 ########################################
