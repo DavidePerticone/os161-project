@@ -18,3 +18,4 @@ void init_swapfile(void)
         KASSERT(result != -1);
     }
 }
+

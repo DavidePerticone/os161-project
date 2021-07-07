@@ -175,7 +175,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				count_tlb_miss_free++;
 				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 				ehi = faultaddress;
-				elo = (paddr  & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, i);
 				splx(spl);
@@ -192,7 +192,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 				ehi = faultaddress;
-				elo = (paddr  & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, victim);
 				splx(spl);
@@ -255,7 +255,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
 				ehi = faultaddress;
-				elo = (paddr  & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, i);
 				splx(spl);
@@ -272,7 +272,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 				ehi = faultaddress;
-				elo = (paddr  & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, victim);
 				splx(spl);
