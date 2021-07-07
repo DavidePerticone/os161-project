@@ -39,9 +39,7 @@
 #include <spinlock.h>
 #include <opt-waitpid.h>
 #include <opt-virtualmem.h>
-#include <opt-swapfile.h>
 #include <elf.h>
-#include <limits.h>
 struct addrspace;
 struct thread;
 struct vnode;
@@ -81,10 +79,6 @@ struct proc {
 
 	#if OPT_VIRTUALMEM
 		Elf_Ehdr p_eh;
-	#endif
-
-	#if OPT_SWAPFILE
-        struct openfile *fileTable[OPEN_MAX];
 	#endif
 };
 

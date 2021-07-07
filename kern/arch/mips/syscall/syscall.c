@@ -35,8 +35,6 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-#include <opt-swapfile.h>
-#include <opt-syscalls.h>
 
 /*
  * System call dispatcher.
@@ -111,32 +109,10 @@ void syscall(struct trapframe *tf)
 		break;
 
 #if OPT_SYSCALLS
-#if OPT_SWAPFILE
-	case SYS_open:
-		retval = sys_open((userptr_t)tf->tf_a0,
-				(int)tf->tf_a1,
-				(mode_t)tf->tf_a2, &err);
-		if (retval < 0)
-			err = ENOSYS;
-		else
-			err = 0;
-		break;
-	case SYS_close:
-		retval = sys_close((int)tf->tf_a0);
-		if (retval < 0)
-			err = ENOSYS;
-		else
-			err = 0; 
-		break;
-	case SYS_remove:
-		/* just ignore: do nothing */
-		retval = 0;
-		break;
-#endif
 	case SYS_write:
 		retval = sys_write((int)tf->tf_a0,
-						(userptr_t)tf->tf_a1,
-						(size_t)tf->tf_a2);
+						   (userptr_t)tf->tf_a1,
+						   (size_t)tf->tf_a2);
 		/* error: function not implemented */
 		if (retval < 0)
 			err = ENOSYS;
@@ -145,8 +121,8 @@ void syscall(struct trapframe *tf)
 		break;
 	case SYS_read:
 		retval = sys_read((int)tf->tf_a0,
-						(userptr_t)tf->tf_a1,
-						(size_t)tf->tf_a2);
+						  (userptr_t)tf->tf_a1,
+						  (size_t)tf->tf_a2);
 		/* error: function not implemented */
 		if (retval < 0)
 			err = ENOSYS;
