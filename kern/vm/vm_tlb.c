@@ -14,6 +14,7 @@
 #include <segments.h>
 #include <thread.h>
 #include <addrspace.h>
+#include <swapfile.h>
 
 
 
@@ -37,6 +38,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	static int count_tlb_miss_free = 0;
 	static int count_tlb_miss_replace = 0;
 
+	init_swapfile();
+
 	/*every time we are in this function, means that a tlb miss occurs*/
 	count_tlb_miss++;
 	DEBUG(DB_VM, "TLB faults -> %d\n", count_tlb_miss);
@@ -50,7 +53,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	case VM_FAULT_READONLY:
 		/* We always create pages read-write, so we can't get this */
 		/* TODO: terminate the process instead of panicking */
-		kprintf("ciaoo ----");
+		
 		return EINVAL;
 		panic("dumbvm: got VM_FAULT_READONLY\n");
 	case VM_FAULT_READ:
@@ -170,7 +173,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				count_tlb_miss_free++;
 				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 				ehi = faultaddress;
-				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, i);
 				splx(spl);
@@ -187,7 +190,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 				ehi = faultaddress;
-				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, victim);
 				splx(spl);
@@ -250,7 +253,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
 				ehi = faultaddress;
-				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, i);
 				splx(spl);
@@ -267,7 +270,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 				ehi = faultaddress;
-				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 				tlb_write(ehi, elo, victim);
 				splx(spl);
@@ -293,7 +296,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
 		ehi = faultaddress;
-		elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
+		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, i);
 		splx(spl);
@@ -307,7 +310,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 	ehi = faultaddress;
-	elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
+	elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 	DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 	tlb_write(ehi, elo, victim);
 	splx(spl);
