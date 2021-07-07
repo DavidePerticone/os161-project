@@ -38,7 +38,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	static int count_tlb_miss_free = 0;
 	static int count_tlb_miss_replace = 0;
 
-	init_swapfile();
+	//init_swapfile();
 
 	/*every time we are in this function, means that a tlb miss occurs*/
 	count_tlb_miss++;
