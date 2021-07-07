@@ -4,8 +4,9 @@ runprogram.o: ../../syscall/runprogram.c ../../include/types.h \
  ../../include/kern/fcntl.h ../../include/lib.h ../../include/cdefs.h \
  opt-noasserts.h ../../include/proc.h ../../include/spinlock.h \
  ../../include/hangman.h opt-hangman.h includelinks/machine/spinlock.h \
- opt-waitpid.h opt-virtualmem.h ../../include/elf.h \
- includelinks/machine/elf.h ../../include/current.h \
+ opt-waitpid.h opt-virtualmem.h opt-swapfile.h ../../include/elf.h \
+ includelinks/machine/elf.h ../../include/limits.h \
+ ../../include/kern/limits.h ../../include/current.h \
  includelinks/machine/current.h ../../include/thread.h \
  ../../include/array.h ../../include/threadlist.h \
  includelinks/machine/thread.h ../../include/setjmp.h \
