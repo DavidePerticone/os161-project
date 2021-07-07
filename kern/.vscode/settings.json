@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "elf.h": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "types.h": "c"
     }
 }
