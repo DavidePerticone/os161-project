@@ -467,6 +467,7 @@ optfile paging	vm/pt.c
 defoption virtualmem
 optfile virtualmem   vm/addrspace.c
 optfile virtualmem vm/segments.c
+optfile virtualmem vm/coremap.c
 
 ########################################
 #                                      #
