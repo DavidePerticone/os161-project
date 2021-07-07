@@ -34,7 +34,6 @@
  * Address space structure and operations.
  */
 
-
 #include <vm.h>
 #include "opt-dumbvm.h"
 #include "opt-virtualmem.h"
@@ -44,7 +43,6 @@
 
 struct vnode;
 
-
 /*
  * Address space - data structure associated with the virtual memory
  * space of a process.
@@ -52,7 +50,8 @@ struct vnode;
  * You write this.
  */
 
-struct addrspace {
+struct addrspace
+{
 #if OPT_DUMBVM
         vaddr_t as_vbase1;
         paddr_t as_pbase1;
@@ -62,7 +61,6 @@ struct addrspace {
         size_t as_npages2;
         paddr_t as_stackpbase;
 #endif
-       
 
 #if OPT_VIRTUALMEM
         vaddr_t as_vbase1;
@@ -114,24 +112,24 @@ struct addrspace {
  */
 
 struct addrspace *as_create(void);
-int               as_copy(struct addrspace *src, struct addrspace **ret);
-void              as_activate(void);
-void              as_deactivate(void);
-void              as_destroy(struct addrspace *);
+int as_copy(struct addrspace *src, struct addrspace **ret);
+void as_activate(void);
+void as_deactivate(void);
+void as_destroy(struct addrspace *);
 
-int               as_define_region(struct addrspace *as,
-                                   vaddr_t vaddr, size_t sz,
-                                   int readable,
-                                   int writeable,
-                                   int executable);
-#if OPT_VIRTUALMEM                                   
-int               as_prepare_load(unsigned npages);
+int as_define_region(struct addrspace *as,
+                     vaddr_t vaddr, size_t sz,
+                     int readable,
+                     int writeable,
+                     int executable);
+#if OPT_VIRTUALMEM
+int as_prepare_load(unsigned npages);
+int isTableActive(void);
 #else
-int               as_prepare_load(struct addrspace *as);
+int as_prepare_load(struct addrspace *as);
 #endif
-int               as_complete_load(struct addrspace *as);
-int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
-
+int as_complete_load(struct addrspace *as);
+int as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 
 /*
  * Functions in loadelf.c
@@ -141,6 +139,5 @@ int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
  */
 
 int load_elf(struct vnode *v, vaddr_t *entrypoint);
-
 
 #endif /* _ADDRSPACE_H_ */
