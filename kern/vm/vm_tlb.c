@@ -12,6 +12,11 @@
 #include <vm.h>
 #include <types.h>
 #include <segments.h>
+#include <thread.h>
+#include <addrspace.h>
+#include <swapfile.h>
+
+
 
 /* under dumbvm, always have 72k of user stack */
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
@@ -33,6 +38,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	static int count_tlb_miss_free = 0;
 	static int count_tlb_miss_replace = 0;
 
+	init_swapfile();
+
 	/*every time we are in this function, means that a tlb miss occurs*/
 	count_tlb_miss++;
 	DEBUG(DB_VM, "TLB faults -> %d\n", count_tlb_miss);
@@ -46,6 +53,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	case VM_FAULT_READONLY:
 		/* We always create pages read-write, so we can't get this */
 		/* TODO: terminate the process instead of panicking */
+		
+		return EINVAL;
 		panic("dumbvm: got VM_FAULT_READONLY\n");
 	case VM_FAULT_READ:
 	case VM_FAULT_WRITE:
@@ -128,8 +137,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
 			/* if all pages are occupied, use victim */
-			if(paddr == 0){
-				paddr=get_victim();
+			if (paddr == 0)
+			{
+				paddr = get_victim();
 			}
 
 			KASSERT(paddr != 0);
@@ -198,8 +208,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				/* Disable interrupts on this CPU while frobbing the TLB. */
 				spl = splhigh();
 				tlb_entry = tlb_probe(ehi, 0);
-				KASSERT( tlb_entry >= 0);
-				/* use !TLB0_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
+				KASSERT(tlb_entry >= 0);
+				/* use !TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
 				tlb_write(ehi, elo & !TLBLO_DIRTY, tlb_entry);
 				splx(spl);
 			}
@@ -209,9 +219,10 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		{
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-			
-			if(paddr == 0){
-				paddr=get_victim();
+
+			if (paddr == 0)
+			{
+				paddr = get_victim();
 			}
 
 			KASSERT(paddr != 0);

@@ -2,6 +2,11 @@
     "files.associations": {
         "elf.h": "c",
         "errno.h": "c",
+<<<<<<< HEAD
+        "unistd.h": "c",
+        "signal.h": "c"
+=======
         "types.h": "c"
+>>>>>>> 30508c1427d3ed61e507e1e65d2c2eb78c558702
     }
 }

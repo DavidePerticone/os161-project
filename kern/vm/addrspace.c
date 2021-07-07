@@ -40,6 +40,7 @@
 #include <mips/tlb.h>
 #include <pt.h>
 #include <coremap.h>
+#include <swapfile.h>
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
  * assignment, this file is not compiled or linked or in any way
@@ -94,6 +95,7 @@ void vm_bootstrap(void)
   freepages = nRamFrames - occupiedpages; /* calculate free pages remaining*/
   addr = alloc_kpages(freepages);         /*allocate all pages available*/
   free_kpages(addr);                      /* deallocate all pages previously allocated */
+  
 }
 
 static void

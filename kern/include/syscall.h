@@ -32,6 +32,7 @@
 
 
 #include <cdefs.h> /* for __DEAD */
+#include <types.h>
 #include "opt-syscalls.h"
 #include <opt-swapfile.h>
 
