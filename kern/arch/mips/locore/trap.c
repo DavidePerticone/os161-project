@@ -39,6 +39,8 @@
 #include <vm.h>
 #include <mainbus.h>
 #include <syscall.h>
+#include <opt-tlb.h>
+#include <kern/errno.h>
 
 
 /* in exception-*.S */
@@ -233,6 +235,13 @@ mips_trap(struct trapframe *tf)
 	switch (code) {
 	case EX_MOD:
 		if (vm_fault(VM_FAULT_READONLY, tf->tf_vaddr)==0) {
+		//	TO DO:
+			#if 0
+						kprintf("Error tlb\n");
+
+			tf->tf_v0 = ENOSYS;
+         	tf->tf_a3 = 1;      /* signal an error */
+			#endif
 			goto done;
 		}
 		break;
