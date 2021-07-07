@@ -154,6 +154,7 @@ int load_page(vaddr_t page, vaddr_t vaddr, int segment)
 	KASSERT(vaddr == ((ph.p_vaddr & PAGE_FRAME) + page));
 	/* prepare data to give to load_segment */
 
+
 	/* if the page we want is greater than the segment size, it means that we have to just allocate an empty page */
 	if (page >= ph.p_filesz)
 	{

@@ -45,6 +45,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	{
 	case VM_FAULT_READONLY:
 		/* We always create pages read-write, so we can't get this */
+		/* TODO: terminate the process instead of panicking */
 		panic("dumbvm: got VM_FAULT_READONLY\n");
 	case VM_FAULT_READ:
 	case VM_FAULT_WRITE:
@@ -126,7 +127,11 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-			/* we need a page, paddr cannot be 0! */
+			/* if all pages are occupied, use victim */
+			if(paddr == 0){
+				paddr=get_victim();
+			}
+
 			KASSERT(paddr != 0);
 			/* 
 			 * first set ipt and TLB, otherwise cannot do translation while loading page
@@ -204,7 +209,11 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		{
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-			/* we need a page, paddr cannot be 0! */
+			
+			if(paddr == 0){
+				paddr=get_victim();
+			}
+
 			KASSERT(paddr != 0);
 			/* 
 			 * 

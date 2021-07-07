@@ -17,6 +17,22 @@
 /* inverted page table */
 static struct ipt_entry *ipt;
 static int nRamFrames;
+static int first_victim;
+static int victim;
+
+int init_victim(int first){
+    first_victim=victim=first;
+    return victim;
+}
+
+/* return the selected victim */
+paddr_t get_victim(void){
+    int selected =  victim++;
+    if(victim>=nRamFrames){
+        victim=first_victim;
+    }
+    return (paddr_t)selected*PAGE_SIZE;
+}
 
 int create_ipt(void){
 
@@ -70,7 +86,7 @@ int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr){
     KASSERT(vaddr != 0);
     
     frame_index = paddr/PAGE_SIZE;
-    KASSERT(frame_index <= nRamFrames);
+    KASSERT(frame_index < nRamFrames);
 
     ipt[frame_index].pid=pid;
     ipt[frame_index].vaddr=vaddr;
