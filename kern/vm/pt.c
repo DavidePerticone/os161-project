@@ -20,18 +20,18 @@ static int nRamFrames;
 static int first_victim;
 static int victim;
 
-int init_victim(int first){
-    (void)first;
+int init_victim(void){
     first_victim=-1;
     return victim;
 }
 
 /* return the selected victim */
-paddr_t get_victim(void){
+paddr_t get_victim(vaddr_t *vaddr){
     for(int i=0; i<nRamFrames; i++){
         if(ipt[i].pid!=-1 && i>first_victim){
             first_victim= i == nRamFrames-1 ? 0 : i ;
-            return (paddr_t)i*PAGE_SIZE;
+            *vaddr=(ipt[i].vaddr);
+            return i*PAGE_SIZE;
         }
     }
     return 0;

@@ -51,6 +51,8 @@
 #include <version.h>
 #include "autoconf.h"  // for pseudoconfig
 #include "opt-virtualmem.h"
+#include "opt-swapfile.h"
+#include "swapfile.h"
 
 
 /*
@@ -134,6 +136,10 @@ boot(void)
 	vfs_setbootfs("emu0");
 
 	kheap_nextgeneration();
+
+	/* init swapfile */
+	init_swapfile();
+
 
 	/*
 	 * Make sure various things aren't screwed up.

@@ -93,11 +93,11 @@ getfreeppages(unsigned long npages)
         addr = 0;
     }
 
-      //zero fill page
+  /*    //zero fill page
     for (int i = 10; i < 11; i++)
     {
         ((char *)addr)[i] = 0;
-    }
+    }*/
 
     spinlock_release(&freemem_lock);
 

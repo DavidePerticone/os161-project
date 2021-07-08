@@ -17,7 +17,6 @@
 #include <swapfile.h>
 #include <syscall.h>
 
-
 /* under dumbvm, always have 72k of user stack */
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
 #define DUMBVM_STACKPAGES 18
@@ -37,8 +36,11 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	static int count_tlb_miss = 0;
 	static int count_tlb_miss_free = 0;
 	static int count_tlb_miss_replace = 0;
+	vaddr_t vaddr;
 
-//	init_swapfile();
+	if(faultaddress == 0x400005){
+		kprintf("HEREEE\n");
+	}
 
 	/*every time we are in this function, means that a tlb miss occurs*/
 	count_tlb_miss++;
@@ -141,7 +143,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* if all pages are occupied, use victim */
 			if (paddr == 0)
 			{
-				//paddr = get_victim();
+				paddr = get_victim(&vaddr);
+				result = swap_out(vaddr);
 			}
 
 			KASSERT(paddr != 0);
@@ -197,12 +200,16 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				tlb_write(ehi, elo, victim);
 				splx(spl);
 			}
-
-			/* load page at vaddr = faultaddress */
-			result = load_page(page_offset_from_segbase, faultaddress, segment);
+			/* look in the swapfile */
+			result = swap_in(faultaddress);
 			if (result)
 			{
-				return -1;
+				/* load page at vaddr = faultaddress if not in swapfile */
+				result = load_page(page_offset_from_segbase, faultaddress, segment);
+				if (result)
+				{
+					return -1;
+				}
 			}
 			/* after loading the page, set the entry to READ_ONLY in case of code page */
 			if (segment == 1)
@@ -224,7 +231,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 
 			if (paddr == 0)
 			{
-				paddr = get_victim();
+				paddr = get_victim(&vaddr);
+				result = swap_out(vaddr);
 			}
 			/* zero fill stack */
 
@@ -278,6 +286,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				tlb_write(ehi, elo, victim);
 				splx(spl);
 			}
+			result = swap_in(faultaddress);
 		}
 		return 0;
 	}

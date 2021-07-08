@@ -2,11 +2,11 @@
 #include <stdio.h>
 
 #define CODE_SEGMENT_ADDRESS	0x400005
-
+int i;
 int
 main(void)
 {
-	int i;
+	
 
 	printf("\nEntering the read-only faulter program - I should die immediately\n");
 	*(int *)CODE_SEGMENT_ADDRESS = 5;

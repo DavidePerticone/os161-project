@@ -91,7 +91,7 @@ void vm_bootstrap(void)
   /*allocation and deallocation of all ram to avoid using ram_stealmem*/
   firstpaddr = ram_getfirstfreeafterbootstrap(); /* get address of first free page */
   occupiedpages = ((int)firstpaddr) / PAGE_SIZE; /* calculate occupied pages by kernel */
-  init_victim(0x3b000 / PAGE_SIZE); /* set first victim to the first available page (not used by kernel) */
+  init_victim(); /* set first victim to the first available page (not used by kernel) */
   freepages = nRamFrames - occupiedpages; /* calculate free pages remaining*/
   addr = alloc_kpages(freepages);         /*allocate all pages available*/
   free_kpages(addr);                      /* deallocate all pages previously allocated */
