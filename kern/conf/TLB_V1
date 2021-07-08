@@ -37,3 +37,4 @@ options virtualmem      # Enable new vm system
 options waitpid         # Adds pid to proc structure
 options syscalls	# Enable rea dand write sys calls
 options swapfile        # Enable swapping pages out on a file
+options hash		# Add hash table/function
