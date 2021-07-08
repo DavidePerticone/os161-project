@@ -11,6 +11,7 @@
 #include <syscall.h>
 #include <current.h>
 #include <lib.h>
+#include <opt-swapfile.h>
 
 #if OPT_SWAPFILE
 
@@ -20,6 +21,7 @@
 #include <limits.h>
 #include <uio.h>
 #include <proc.h>
+#include <kern/seek.h>
 
 /* max num of system wide open files */
 #define SYSTEM_OPEN_MAX (10*OPEN_MAX)
@@ -166,6 +168,66 @@ file_write(int fd, userptr_t buf_ptr, size_t size) {
   of->offset = u.uio_offset;
   nwrite = size - u.uio_resid;
   return (nwrite);
+}
+
+int sys_lseek(int fd, off_t offset, int whence, int *retval) {
+  struct openfile *of=NULL;; 	
+
+  of = curproc->fileTable[fd];
+
+  if (of == NULL) {
+    kprintf("Error in sys_lseek: fd %d for process %d, file not open\n",
+      fd, curproc->p_pid);
+    *retval = -1;
+    return EBADF;
+  }
+  int errcode = 0;
+  int res = file_seek(of, offset, whence, &errcode);
+  if (res != 0 || errcode != 0) {
+    DEBUG(DB_SYSCALL, "Error in sys_lseek: fd %d for process %d, code=%d, err=%s\n",
+      fd, curproc->p_pid, errcode, strerror(errcode));
+    *retval = -1;
+    return errcode;
+  }
+
+  KASSERT(of->offset == offset);
+
+  *retval = of->offset;
+  return 0;
+}
+
+int file_seek(struct openfile *of, off_t offset, int whence, int *errcode) {
+	if (!of || !filedes_is_seekable(of)) {
+		*errcode = EBADF;
+		return -1;
+	}
+	off_t new_offset = offset;
+
+	switch(whence) {
+  case SEEK_SET:
+		new_offset = offset;
+		break;
+	default:
+		*errcode = EINVAL;
+    kprintf("Error in file_seek: different seek start position not implemented\n");
+		return -1;
+	}
+
+	if (new_offset < 0) {
+		*errcode = EINVAL;
+		return -1;
+	}
+	DEBUGASSERT(of->offset >= 0);
+	of->offset = new_offset;
+	return 0;
+}
+
+/* check if the file is seekable */
+bool filedes_is_seekable(struct openfile *of) {
+	KASSERT(of);
+	// if (file_des->ftype != FILEDES_TYPE_REG) return false;
+	if (!of->vn) return false;
+	return VOP_ISSEEKABLE(of->vn);
 }
 
 #endif
