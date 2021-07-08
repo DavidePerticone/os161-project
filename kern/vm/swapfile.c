@@ -6,11 +6,17 @@
 #include <kern/unistd.h>
 #include <vfs.h>
 
+#define MAX_SIZE 1024*1024*9
+
 static struct vnode *v = NULL;
+
+
 
 void init_swapfile(void)
 {
     int result;
+    
+   
 
     if (v == NULL)
     {
@@ -18,4 +24,6 @@ void init_swapfile(void)
         KASSERT(result != -1);
     }
 }
+
+
 

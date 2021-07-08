@@ -111,7 +111,7 @@ void syscall(struct trapframe *tf)
 		break;
 
 #if OPT_SYSCALLS
-#if OPT_SWAPFILE
+#if 0
 	case SYS_open:
 		retval = sys_open((userptr_t)tf->tf_a0,
 				(int)tf->tf_a1,

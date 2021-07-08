@@ -11,7 +11,6 @@
 #include <syscall.h>
 #include <current.h>
 #include <lib.h>
-#include <opt-swapfile.h>
 
 #if OPT_SWAPFILE
 
@@ -40,6 +39,8 @@ void openfileIncrRefCount(struct openfile *of) {
   if (of!=NULL)
     of->countRef++;
 }
+
+#if USE_KERNEL_BUFFER
 
 static int
 file_read(int fd, userptr_t buf_ptr, size_t size) {
@@ -97,6 +98,77 @@ file_write(int fd, userptr_t buf_ptr, size_t size) {
   return (nwrite);
 }
 
+#else
+
+static int
+file_read(int fd, userptr_t buf_ptr, size_t size) {
+  struct iovec iov;
+  struct uio u;
+  int result;
+  struct vnode *vn;
+  struct openfile *of;
+
+  if (fd<0||fd>OPEN_MAX) return -1;
+  of = curproc->fileTable[fd];
+  if (of==NULL) return -1;
+  vn = of->vn;
+  if (vn==NULL) return -1;
+
+  iov.iov_ubase = buf_ptr;
+  iov.iov_len = size;
+
+  u.uio_iov = &iov;
+  u.uio_iovcnt = 1;
+  u.uio_resid = size;          // amount to read from the file
+  u.uio_offset = of->offset;
+  u.uio_segflg =UIO_USERISPACE;
+  u.uio_rw = UIO_READ;
+  u.uio_space = curproc->p_addrspace;
+
+  result = VOP_READ(vn, &u);
+  if (result) {
+    return result;
+  }
+
+  of->offset = u.uio_offset;
+  return (size - u.uio_resid);
+}
+
+static int
+file_write(int fd, userptr_t buf_ptr, size_t size) {
+  struct iovec iov;
+  struct uio u;
+  int result, nwrite;
+  struct vnode *vn;
+  struct openfile *of;
+
+  if (fd<0||fd>OPEN_MAX) return -1;
+  of = curproc->fileTable[fd];
+  if (of==NULL) return -1;
+  vn = of->vn;
+  if (vn==NULL) return -1;
+
+  iov.iov_ubase = buf_ptr;
+  iov.iov_len = size;
+
+  u.uio_iov = &iov;
+  u.uio_iovcnt = 1;
+  u.uio_resid = size;          // amount to read from the file
+  u.uio_offset = of->offset;
+  u.uio_segflg =UIO_USERISPACE;
+  u.uio_rw = UIO_WRITE;
+  u.uio_space = curproc->p_addrspace;
+
+  result = VOP_WRITE(vn, &u);
+  if (result) {
+    return result;
+  }
+  of->offset = u.uio_offset;
+  nwrite = size - u.uio_resid;
+  return (nwrite);
+}
+
+#endif
 
 /*
  * file system calls for open/close
@@ -131,8 +203,8 @@ sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
   else {
     for (fd=STDERR_FILENO+1; fd<OPEN_MAX; fd++) {
       if (curproc->fileTable[fd] == NULL) {
-	      curproc->fileTable[fd] = of;
-	      return fd;
+	curproc->fileTable[fd] = of;
+	return fd;
       }
     }
     // no free slot in process open file table

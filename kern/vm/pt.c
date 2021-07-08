@@ -21,17 +21,20 @@ static int first_victim;
 static int victim;
 
 int init_victim(int first){
-    first_victim=victim=first;
+    (void)first;
+    first_victim=-1;
     return victim;
 }
 
 /* return the selected victim */
 paddr_t get_victim(void){
-    int selected =  victim++;
-    if(victim>=nRamFrames){
-        victim=first_victim;
+    for(int i=0; i<nRamFrames; i++){
+        if(ipt[i].pid!=-1 && i>first_victim){
+            first_victim= i == nRamFrames-1 ? 0 : i ;
+            return (paddr_t)i*PAGE_SIZE;
+        }
     }
-    return (paddr_t)selected*PAGE_SIZE;
+    return 0;
 }
 
 int create_ipt(void){

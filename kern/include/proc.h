@@ -42,6 +42,7 @@
 #include <opt-swapfile.h>
 #include <elf.h>
 #include <limits.h>
+#include <syscall.h>
 struct addrspace;
 struct thread;
 struct vnode;
@@ -63,6 +64,9 @@ struct vnode;
  * thread_switch needs to be able to fetch the current address space
  * without sleeping.
  */
+
+
+
 struct proc {
 	char *p_name;			/* Name of this process */
 	struct spinlock p_lock;		/* Lock for this structure */

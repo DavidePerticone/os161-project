@@ -64,6 +64,7 @@ int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 
 #if OPT_SYSCALLS
 #if OPT_SWAPFILE
+
 struct openfile;
 void openfileIncrRefCount(struct openfile *of);
 int sys_open(userptr_t path, int openflags, mode_t mode, int *errp);

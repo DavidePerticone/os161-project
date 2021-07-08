@@ -93,6 +93,12 @@ getfreeppages(unsigned long npages)
         addr = 0;
     }
 
+      //zero fill page
+    for (int i = 10; i < 11; i++)
+    {
+        ((char *)addr)[i] = 0;
+    }
+
     spinlock_release(&freemem_lock);
 
     return addr;
@@ -138,10 +144,7 @@ int freeppages(paddr_t addr, long first_page)
         freeRamFrames[i] = (unsigned char)1;
     }
 
-    /* zero fill page 
-  for(int i=0; i<(long)(PAGE_SIZE*npages); i++){
-      ((char*)addr)[i]=0;
-  }*/
+  
     spinlock_release(&freemem_lock);
 
     return 1;
