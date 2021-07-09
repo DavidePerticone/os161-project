@@ -27,7 +27,6 @@ DONE: swap of only data and stack pages: code should be trown out
 #include <types.h>
 #include <segments.h>
 #include <thread.h>
-#include <addrspace.h>
 #include <swapfile.h>
 #include <syscall.h>
 
@@ -35,7 +34,7 @@ DONE: swap of only data and stack pages: code should be trown out
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
 #define DUMBVM_STACKPAGES 18
 
-static int address_segment(vaddr_t faultaddress, struct addrspace *as)
+ int address_segment(vaddr_t faultaddress, struct addrspace *as)
 {
 
 	vaddr_t vbase1, vtop1, vbase2, vtop2, stackbase, stacktop;
@@ -86,17 +85,15 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	paddr_t paddr;
 	int i;
 	uint32_t ehi, elo;
-	struct addrspace *as, *as_victim;
+	struct addrspace *as;
 	int spl;
 	int victim;
-	int segment, victim_segment;
+	int segment;
 	int tlb_entry;
 	int result;
-	pid_t pid_victim;
 	static int count_tlb_miss = 0;
 	static int count_tlb_miss_free = 0;
 	static int count_tlb_miss_replace = 0;
-	vaddr_t vaddr;
 
 	/*every time we are in this function, means that a tlb miss occurs*/
 	count_tlb_miss++;
@@ -165,35 +162,15 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* faultaddress is at page multiple, if we subtract the segment address we find the offset from the segment base */
 			page_offset_from_segbase = faultaddress - (segment == 1 ? as->as_vbase1 : as->as_vbase2);
 
+
+			/* TODO should start a cs here? */
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
 
-			/* if all pages are occupied, use victim */
-			if (paddr == 0)
-			{
-				/* get physical and virtual address of victmim */
-				paddr = get_victim(&vaddr, &pid_victim);
-				/* get address space of the process whose page is the victim */
-				as_victim = pid_getas(pid_victim);
-				/* get in which segment the page is */
-				victim_segment = address_segment(vaddr, as_victim);
-				/* swap page out */
-				result = swap_out(vaddr, victim_segment);
-				if (result)
-				{
-					return -1;
-				}
-				/* delete entry from TLB */
-				spl = splhigh();
-
-				tlb_entry = tlb_probe(vaddr, 0);
-				/* check if an entry corresponding to the vaddr swapped out exists */
-				if (tlb_entry >= 0)
-				{
-					tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
-				}
-				splx(spl);
-			}
+			
+			
+			/* TODO should invalidate the TLB entry of gotten page ? */
+			
 
 			KASSERT(paddr != 0);
 			/* 
@@ -290,33 +267,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
 
-			if (paddr == 0)
-			{
-				/* get physical and virtual address of victmim */
-				paddr = get_victim(&vaddr, &pid_victim);
-				/* get address space of the process whose page is the victim */
-				as_victim = pid_getas(pid_victim);
-				/* get in which segment the page is */
-				victim_segment = address_segment(vaddr, as_victim);
-				/* swap page out */
-				result = swap_out(vaddr, victim_segment);
-				if (result)
-				{
-					return -1;
-				}
-				/* delete entry from TLB */
-				spl = splhigh();
-
-				tlb_entry = tlb_probe(vaddr, 0);
-				/* check if an entry corresponding to the vaddr swapped out exists */
-				if (tlb_entry >= 0)
-				{
-					tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
-				}
-				splx(spl);
-
-			}
-
+		
 			KASSERT(paddr != 0);
 			/* 
 			 * 

@@ -123,6 +123,7 @@ alloc_kpages(unsigned npages)
   {
     return 0;
   }
+  ipt_kadd(-1, 0, 0);
   return PADDR_TO_KVADDR(pa);
 }
 
