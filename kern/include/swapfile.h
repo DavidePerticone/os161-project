@@ -12,7 +12,7 @@ struct swap_entry
 
 void init_swapfile(void);
 int swap_in(vaddr_t page);
-int swap_out(vaddr_t page);
+int swap_out(vaddr_t page, int segment_victim);
 
 
 

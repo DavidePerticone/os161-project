@@ -45,7 +45,7 @@ file_read_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
     struct uio u;
     int result, nread;
 
-    iov.iov_ubase =(userptr_t) (buf_ptr);
+    iov.iov_ubase = (userptr_t)(buf_ptr);
     iov.iov_len = size;
 
     u.uio_iov = &iov;
@@ -63,10 +63,10 @@ file_read_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
     }
 
     if (u.uio_resid != 0)
-	{
-		kprintf("SWAPPING IN: short read on page - problems reading?\n");
-		return EFAULT;
-	}
+    {
+        kprintf("SWAPPING IN: short read on page - problems reading?\n");
+        return EFAULT;
+    }
 
     nread = size - u.uio_resid;
     return (nread);
@@ -84,7 +84,7 @@ int swap_in(vaddr_t page)
     {
         if (swap_table[i].pid == pid && swap_table[i].page == page)
         {
-            kprintf("Swapping in\n");
+            //kprintf("Swapping in\n");
             result = file_read_paddr(v, page, PAGE_SIZE, i * PAGE_SIZE);
             KASSERT(result == PAGE_SIZE);
             swap_table[i].pid = -1;
@@ -95,8 +95,6 @@ int swap_in(vaddr_t page)
     return -1;
 }
 
-
-
 static int
 file_write_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
 {
@@ -104,7 +102,7 @@ file_write_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
     struct uio u;
     int result, nwrite;
 
-    iov.iov_ubase =(userptr_t) (buf_ptr);
+    iov.iov_ubase = (userptr_t)(buf_ptr);
     iov.iov_len = size;
 
     u.uio_iov = &iov;
@@ -125,8 +123,16 @@ file_write_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
     return (nwrite);
 }
 
-int swap_out(vaddr_t page)
+int swap_out(vaddr_t page, int segment_victim)
 {
+
+    /*if the page to swap out is in the segment, do not swap out */
+  /*  if (segment_victim == 1)
+    {
+        kprintf("Not swapping code\n");
+        return 0;
+    }*/
+    (void)segment_victim;
 
     int result, i;
     pid_t pid;
@@ -138,11 +144,8 @@ int swap_out(vaddr_t page)
         if (swap_table[i].pid == -1)
         {
 
-            
-
             result = file_write_paddr(v, page, PAGE_SIZE, i * PAGE_SIZE);
-            kprintf("Swapped out\n");
-                if (result != PAGE_SIZE)
+            if (result != PAGE_SIZE)
             {
                 panic("Unable to swap page out");
             }
