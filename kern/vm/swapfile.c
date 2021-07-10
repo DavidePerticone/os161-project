@@ -161,3 +161,33 @@ int swap_out(vaddr_t page, int segment_victim)
 
 
 /* TODO: free swap_table entries when process exits */
+void free_swap_table(pid_t pid)
+{
+    // TODO add spinlock
+    spinlock_acquire(&swap_lock);
+
+    KASSERT(pid >= 0);
+
+    for(int i = 0; i < ENTRIES; i++) {
+        if(swap_table[i].pid == pid) {
+            swap_table[i].pid = -1;
+        }
+    }
+
+    spinlock_acquire(&swap_lock);
+}
+
+void print_swap(void)
+{
+
+    spinlock_acquire(&swap_lock);
+
+    kprintf("<< SWAP TABLE >>\n");
+
+    for(int i = 0; i < ENTRIES; i++) {
+        kprintf("%d -   %d   - %d\n", i, swap_table[i].pid, swap_table[i].page / PAGE_SIZE);
+    }
+
+    spinlock_acquire(&swap_lock);
+
+}
