@@ -43,10 +43,15 @@ void setLoading(int set, int entry)
 int isLoading(int entry)
 {
     KASSERT(entry > 0 && entry < nRamFrames);
-   
-    return (ipt[entry].vaddr & LOAD_MASK) == LOAD_MASK;
+    /*Protect the read of an entry, avoid other threads changing the entry while the read in on*/
+    spinlock_acquire(&ipt_lock);
+    int val = ipt[entry].vaddr;
+    spinlock_release(&ipt_lock);
+    /*Get the MSB of the entry, if set return 1 else 0. This tells if the entry is still loading or not*/
+    return (val & LOAD_MASK) == LOAD_MASK;
 }
 
+/*DEBUG function used to check the behavior of the page table*/
 void print_ipt(void)
 {
     int i;
@@ -63,7 +68,6 @@ int init_victim(void)
 {
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
-
     last_victim = -1;
     spinlock_release(&ipt_lock);
 
@@ -110,7 +114,6 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
 
 int create_ipt(void)
 {
-
     int i;
     nRamFrames = ((int)ram_getsize()) / PAGE_SIZE;
     KASSERT(nRamFrames != 0);
