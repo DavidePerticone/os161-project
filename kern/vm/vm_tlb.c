@@ -1,4 +1,4 @@
-/* BUG: If we set dirty bit to readonly in both cases (loading from disk and setting entry in TLB),
+/* SOLVED: If we set dirty bit to readonly in both cases (loading from disk and setting entry in TLB),
 there can be a race condition. One thread waits on the load_page, the other see the ipt with the desired entry
 and set the dirty bit to dirty- In this way, the load of the page causes readonly-fault
 
@@ -10,6 +10,8 @@ TO IMPLEMENT: zero pages when allocating them
 DONE: swap of only data and stack pages: code should be trown out
 
 TO DO: insert various locks and synch mechanism
+
+TO DO: set -1 pid swap_table when process terminates
 
 */
 
@@ -227,6 +229,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				return -1;
 			}
+			setLoading(1, paddr/PAGE_SIZE);
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
@@ -248,6 +251,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				result = 1;
 			}
 
+
+
 			if (result)
 			{
 				/* load page at vaddr = faultaddress if not in swapfile */
@@ -257,6 +262,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 					return -1;
 				}
 			}
+
+
+			setLoading(0, paddr/PAGE_SIZE);
 			/* after loading the page, set the entry to READ_ONLY in case of code page */
 			if (segment == 1)
 			{
@@ -264,8 +272,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				spl = splhigh();
 				tlb_entry = tlb_probe(faultaddress, 0);
 				KASSERT(tlb_entry >= 0);
-				/* use !TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
-				tlb_write(ehi, elo & !TLBLO_DIRTY, tlb_entry);
+				/* use ~TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
+				tlb_write(ehi, elo & ~TLBLO_DIRTY, tlb_entry);
+
 				splx(spl);
 			}
 			return 0;
@@ -284,6 +293,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				return -1;
 			}
+			
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
@@ -323,9 +333,10 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
 			ehi = faultaddress;
-			if (/*segment == 1*/ 0)
+			if (segment == 1 && !isLoading(paddr/PAGE_SIZE) )
 			{
-				elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
+				elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
+
 			}
 			else
 			{
@@ -346,9 +357,10 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 	ehi = faultaddress;
-	if (/*segment == 1*/ 0)
+	if (segment == 1 && !isLoading(paddr/PAGE_SIZE))
 	{
-		elo = (paddr & !TLBLO_DIRTY) | TLBLO_VALID;
+		elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
+
 	}
 	else
 	{

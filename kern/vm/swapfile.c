@@ -92,7 +92,7 @@ int swap_in(vaddr_t page)
         }
     }
 
-    return -1;
+    return 1;
 }
 
 static int
@@ -127,12 +127,10 @@ int swap_out(vaddr_t page, int segment_victim)
 {
 
     /*if the page to swap out is in the segment, do not swap out */
-  /*  if (segment_victim == 1)
+    if (segment_victim == 1)
     {
-        kprintf("Not swapping code\n");
         return 0;
-    }*/
-    (void)segment_victim;
+    }
 
     int result, i;
     pid_t pid;
@@ -159,3 +157,7 @@ int swap_out(vaddr_t page, int segment_victim)
 
     panic("Out of swapspace\n");
 }
+
+
+
+/* TODO: free swap_table entries when process exits */

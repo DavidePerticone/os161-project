@@ -30,6 +30,7 @@ sys__exit(int status)
   /* thread exits. proc data structure will be lost */
   kprintf("PID: %d\n", pid);
   free_ipt_process(pid);
+  /* TODO: free swap_table entries when process exits */
   print_ipt();
 
   thread_exit();

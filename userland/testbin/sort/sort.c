@@ -102,16 +102,17 @@ static int A[SIZE];
 static void
 initarray(void)
 {
-	int i;
 
-	/*
-	 * Initialize the array, with pseudo-random but deterministic contents.
-	 */
-
-	for (i = 0; i < SIZE; i++)
-	{
-		A[i] = i;
-	}
+  int i;
+  
+     /*
+      * Initialize the array, with pseudo-random but deterministic contents.
+      */
+    
+  
+     for (i = 0; i < SIZE; i++) {
+         A[i] = i;
+     }
 }
 
 static void

@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 
-#define CODE_SEGMENT_ADDRESS	0x400005
+#define CODE_SEGMENT_ADDRESS	0x400000
 int i;
 int
 main(void)

@@ -121,6 +121,8 @@ getppages(unsigned long npages)
         spinlock_acquire(&stealmem_lock);
         paddr = ram_stealmem(npages);
         spinlock_release(&stealmem_lock);
+    }else{
+        
     }
     if (paddr != 0 && isTableActive())
     {

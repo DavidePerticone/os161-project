@@ -20,12 +20,36 @@ static int nRamFrames;
 static int last_victim;
 static int victim;
 static struct spinlock ipt_lock = SPINLOCK_INITIALIZER;
-static int ipt_active=0;
+static int ipt_active = 0;
+
+void setLoading(int set, int entry)
+{
+
+    KASSERT(set == 0 || set == 1);
+    KASSERT(entry > 0 && entry < nRamFrames);
+    spinlock_acquire(&ipt_lock);
+    if (set)
+    {
+        ipt[entry].vaddr |= LOAD_MASK;
+    }
+    else
+    {   
+       
+        ipt[entry].vaddr &= ~LOAD_MASK;
+    }
+    spinlock_release(&ipt_lock);
+}
+
+int isLoading(int entry)
+{
+    KASSERT(entry > 0 && entry < nRamFrames);
+   
+    return (ipt[entry].vaddr & LOAD_MASK) == LOAD_MASK;
+}
 
 void print_ipt(void)
 {
     int i;
-    kprintf("Entry - PID - VADDR\n");
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
     for (i = 0; i < nRamFrames; i++)
@@ -38,7 +62,7 @@ void print_ipt(void)
 int init_victim(void)
 {
     spinlock_acquire(&ipt_lock);
-        KASSERT(ipt_active);
+    KASSERT(ipt_active);
 
     last_victim = -1;
     spinlock_release(&ipt_lock);
@@ -50,7 +74,7 @@ int init_victim(void)
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
 {
     spinlock_acquire(&ipt_lock);
-        KASSERT(ipt_active);
+    KASSERT(ipt_active);
 
     /* for each ram frames */
     for (int i = 0; i < nRamFrames; i++)
@@ -101,7 +125,7 @@ int create_ipt(void)
     {
         ipt[i].pid = -1;
     }
-    ipt_active=1;
+    ipt_active = 1;
     spinlock_release(&ipt_lock);
 
     return 0;
@@ -123,7 +147,8 @@ paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr)
     {
         if (ipt[i].pid == pid)
         {
-            if (ipt[i].vaddr == vaddr)
+         
+            if ((ipt[i].vaddr & ~LOAD_MASK) == vaddr)
             {
                 /* if frame is in memory return its physical address */
                 spinlock_release(&ipt_lock);
@@ -148,15 +173,17 @@ int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr)
     KASSERT(pid >= 0);
     KASSERT(paddr != 0);
     KASSERT(vaddr != 0);
+ 
 
     frame_index = paddr / PAGE_SIZE;
     KASSERT(frame_index < nRamFrames);
     spinlock_acquire(&ipt_lock);
-    if(ipt_active){
-    KASSERT(ipt_active);
+    if (ipt_active)
+    {
+        KASSERT(ipt_active);
 
-    ipt[frame_index].pid = pid;
-    ipt[frame_index].vaddr = vaddr;
+        ipt[frame_index].pid = pid;
+        ipt[frame_index].vaddr = vaddr;
     }
     spinlock_release(&ipt_lock);
 
@@ -167,22 +194,21 @@ int ipt_kadd(pid_t pid, paddr_t paddr, vaddr_t vaddr)
 {
     int frame_index;
     KASSERT(pid == -1);
-    
+
     frame_index = paddr / PAGE_SIZE;
     KASSERT(frame_index < nRamFrames);
     spinlock_acquire(&ipt_lock);
-    if(ipt_active){
-    KASSERT(ipt_active);
+    if (ipt_active)
+    {
+        KASSERT(ipt_active);
 
-    ipt[frame_index].pid = pid;
-    ipt[frame_index].vaddr = vaddr;
+        ipt[frame_index].pid = pid;
+        ipt[frame_index].vaddr = vaddr;
     }
     spinlock_release(&ipt_lock);
 
     return 0;
 }
-
-
 
 /*
  * Convinience function to free all the enter of a process.
@@ -194,7 +220,7 @@ void free_ipt_process(pid_t pid)
 {
     int i, result;
     spinlock_acquire(&ipt_lock);
-        KASSERT(ipt_active);
+    KASSERT(ipt_active);
 
     for (i = 0; i < nRamFrames; i++)
     {
