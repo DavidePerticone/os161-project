@@ -235,19 +235,13 @@ mips_trap(struct trapframe *tf)
 	switch (code) {
 	case EX_MOD:
 		if (vm_fault(VM_FAULT_READONLY, tf->tf_vaddr)==0) {
-		//	TO DO:
-			#if 0
-						kprintf("Error tlb\n");
-
-			tf->tf_v0 = ENOSYS;
-         	tf->tf_a3 = 1;      /* signal an error */
-			#endif
 			goto done;
 		}
 		break;
 	case EX_TLBL:
 		if (vm_fault(VM_FAULT_READ, tf->tf_vaddr)==0) {
 			goto done;
+			
 		}
 		break;
 	case EX_TLBS:

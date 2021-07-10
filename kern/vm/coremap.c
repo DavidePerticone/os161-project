@@ -10,6 +10,12 @@
 #include <spinlock.h>
 #include <current.h>
 #include <mips/tlb.h>
+#include <segments.h>
+#include <thread.h>
+#include <addrspace.h>
+#include <swapfile.h>
+#include <syscall.h>
+#include <vm_tlb.h>
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static struct spinlock freemem_lock = SPINLOCK_INITIALIZER;
@@ -93,12 +99,6 @@ getfreeppages(unsigned long npages)
         addr = 0;
     }
 
-/*      //zero fill page
-    for (int i = 10; i < 11; i++)
-    {
-        ((char *)addr)[i] = 0;
-    }
-*/
     spinlock_release(&freemem_lock);
 
     return addr;
@@ -107,25 +107,47 @@ getfreeppages(unsigned long npages)
 paddr_t
 getppages(unsigned long npages)
 {
-    paddr_t addr;
+    paddr_t paddr;
+    vaddr_t vaddr;
+    pid_t pid_victim;
+    struct addrspace *as_victim;
+    int victim_segment, result;
 
     /* try freed pages first */
-    addr = getfreeppages(npages);
-    if (addr == 0)
+    paddr = getfreeppages(npages);
+    if (paddr == 0)
     {
         /* call stealmem */
         spinlock_acquire(&stealmem_lock);
-        addr = ram_stealmem(npages);
+        paddr = ram_stealmem(npages);
         spinlock_release(&stealmem_lock);
+    }else{
+        
     }
-    if (addr != 0 && isTableActive())
+    if (paddr != 0 && isTableActive())
     {
         spinlock_acquire(&freemem_lock);
-        allocSize[addr / PAGE_SIZE] = npages;
+        allocSize[paddr / PAGE_SIZE] = npages;
         spinlock_release(&freemem_lock);
     }
 
-    return addr;
+    if (paddr == 0  && isTableActive())
+    {
+        /* get physical and virtual address of victmim */
+        paddr = get_victim(&vaddr, &pid_victim);
+        /* get address space of the process whose page is the victim */
+        as_victim = pid_getas(pid_victim);
+        /* get in which segment the page is */
+        victim_segment = address_segment(vaddr, as_victim);
+        /* swap page out */
+        result = swap_out(vaddr, victim_segment);
+        if (result)
+        {
+            return 0;
+        }
+    }
+
+    return paddr;
 }
 
 int freeppages(paddr_t addr, long first_page)
@@ -144,7 +166,6 @@ int freeppages(paddr_t addr, long first_page)
         freeRamFrames[i] = (unsigned char)1;
     }
 
-  
     spinlock_release(&freemem_lock);
 
     return 1;

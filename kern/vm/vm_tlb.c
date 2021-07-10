@@ -1,3 +1,20 @@
+/* SOLVED: If we set dirty bit to readonly in both cases (loading from disk and setting entry in TLB),
+there can be a race condition. One thread waits on the load_page, the other see the ipt with the desired entry
+and set the dirty bit to dirty- In this way, the load of the page causes readonly-fault
+
+DONE: we should swap out a page when doing getppages. In this way also the kernel can get pages
+when memory is full.
+
+TO IMPLEMENT: zero pages when allocating them
+
+DONE: swap of only data and stack pages: code should be trown out
+
+TO DO: insert various locks and synch mechanism
+
+TO DO: set -1 pid swap_table when process terminates
+
+*/
+
 #include <vm_tlb.h>
 #include <types.h>
 #include <kern/errno.h>
@@ -13,18 +30,106 @@
 #include <types.h>
 #include <segments.h>
 #include <thread.h>
-#include <addrspace.h>
 #include <swapfile.h>
 #include <syscall.h>
-
 
 /* under dumbvm, always have 72k of user stack */
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
 #define DUMBVM_STACKPAGES 18
 
+static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
+{
+
+	int i;
+	uint32_t ehi, elo;
+	int victim;
+	int spl;
+	/* Disable interrupts on this CPU while frobbing the TLB. */
+	spl = splhigh();
+
+	/* add entry in the TLB */
+	for (i = 0; i < NUM_TLB; i++)
+	{
+		tlb_read(&ehi, &elo, i);
+		if (elo & TLBLO_VALID)
+		{
+			continue;
+		}
+		//count_tlb_miss_free++;
+		//	DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
+		ehi = faultaddress;
+		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
+		tlb_write(ehi, elo, i);
+
+		break;
+	}
+	/* if all entry are occupied, find a victim and replace it */
+	if (i == NUM_TLB)
+	{
+		/*select a victim to be replaced*/
+		victim = tlb_get_rr_victim();
+
+		/*write on the victim entry the new value*/
+		//	count_tlb_miss_replace++;
+		//	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
+
+		ehi = faultaddress;
+		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
+		tlb_write(ehi, elo, victim);
+	}
+	splx(spl);
+}
+
+int address_segment(vaddr_t faultaddress, struct addrspace *as)
+{
+
+	vaddr_t vbase1, vtop1, vbase2, vtop2, stackbase, stacktop;
+	int segment;
+
+	/* Assert that the address space has been set up properly. */
+	KASSERT(as != NULL);
+	KASSERT(as->as_vbase1 != 0);
+	KASSERT(as->as_npages1 != 0);
+	KASSERT(as->as_vbase2 != 0);
+	KASSERT(as->as_npages2 != 0);
+	KASSERT((as->as_vbase1 & PAGE_FRAME) == as->as_vbase1);
+	KASSERT((as->as_vbase2 & PAGE_FRAME) == as->as_vbase2);
+
+	vbase1 = as->as_vbase1;
+	vtop1 = vbase1 + as->as_npages1 * PAGE_SIZE;
+	vbase2 = as->as_vbase2;
+	vtop2 = vbase2 + as->as_npages2 * PAGE_SIZE;
+	stackbase = USERSTACK - DUMBVM_STACKPAGES * PAGE_SIZE;
+	stacktop = USERSTACK;
+
+	/* understand in which segment we are, so as to behave accordingly */
+	if (faultaddress >= vbase1 && faultaddress < vtop1)
+	{
+		/* we are in segment one (due to ELF file segments division)*/
+		segment = 1;
+	}
+	else if (faultaddress >= vbase2 && faultaddress < vtop2)
+	{
+		/* data segment, RW segment */
+		segment = 2;
+	}
+	else if (faultaddress >= stackbase && faultaddress < stacktop)
+	{
+		/* stack segment, RW segment */
+		segment = 3;
+	}
+	else
+	{
+		return EFAULT;
+	}
+
+	return segment;
+}
+
 int vm_fault(int faulttype, vaddr_t faultaddress)
 {
-	vaddr_t vbase1, vtop1, vbase2, vtop2, stackbase, stacktop;
 	paddr_t paddr;
 	int i;
 	uint32_t ehi, elo;
@@ -37,8 +142,6 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	static int count_tlb_miss = 0;
 	static int count_tlb_miss_free = 0;
 	static int count_tlb_miss_replace = 0;
-
-//	init_swapfile();
 
 	/*every time we are in this function, means that a tlb miss occurs*/
 	count_tlb_miss++;
@@ -85,38 +188,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 
-	/* Assert that the address space has been set up properly. */
-	KASSERT(as->as_vbase1 != 0);
-	KASSERT(as->as_npages1 != 0);
-	KASSERT(as->as_vbase2 != 0);
-	KASSERT(as->as_npages2 != 0);
-	KASSERT((as->as_vbase1 & PAGE_FRAME) == as->as_vbase1);
-	KASSERT((as->as_vbase2 & PAGE_FRAME) == as->as_vbase2);
-
-	vbase1 = as->as_vbase1;
-	vtop1 = vbase1 + as->as_npages1 * PAGE_SIZE;
-	vbase2 = as->as_vbase2;
-	vtop2 = vbase2 + as->as_npages2 * PAGE_SIZE;
-	stackbase = USERSTACK - DUMBVM_STACKPAGES * PAGE_SIZE;
-	stacktop = USERSTACK;
-
-	/* understand in which segment we are, so as to behave accordingly */
-	if (faultaddress >= vbase1 && faultaddress < vtop1)
-	{
-		/* we are in segment one (due to ELF file segments division)*/
-		segment = 1;
-	}
-	else if (faultaddress >= vbase2 && faultaddress < vtop2)
-	{
-		/* data segmente, RW segment */
-		segment = 2;
-	}
-	else if (faultaddress >= stackbase && faultaddress < stacktop)
-	{
-		/* stack segment, RW segment */
-		segment = 3;
-	}
-	else
+	/* get in which segment the faulting address is */
+	segment = address_segment(faultaddress, as);
+	if (segment == EFAULT)
 	{
 		return EFAULT;
 	}
@@ -136,13 +210,11 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* faultaddress is at page multiple, if we subtract the segment address we find the offset from the segment base */
 			page_offset_from_segbase = faultaddress - (segment == 1 ? as->as_vbase1 : as->as_vbase2);
 
+			/* TODO should start a cs here? */
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-			/* if all pages are occupied, use victim */
-			if (paddr == 0)
-			{
-				//paddr = get_victim();
-			}
+
+			/* TODO should invalidate the TLB entry of gotten page ? */
 
 			KASSERT(paddr != 0);
 			/* 
@@ -157,62 +229,52 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				return -1;
 			}
+			setLoading(1, paddr/PAGE_SIZE);
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
 
-			/* Disable interrupts on this CPU while frobbing the TLB. */
-			spl = splhigh();
+			update_tlb(faultaddress, paddr);
 
-			/* add entry in the TLB */
-			for (i = 0; i < NUM_TLB; i++)
+			/* zero fill stack */
+			for (int i = 0; i < PAGE_SIZE; i++)
 			{
-				tlb_read(&ehi, &elo, i);
-				if (elo & TLBLO_VALID)
-				{
-					continue;
-				}
-				count_tlb_miss_free++;
-				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
-				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
-				tlb_write(ehi, elo, i);
-				splx(spl);
-				break;
+				((char *)faultaddress)[i] = 0;
 			}
-			/* if all entry are occupied, find a victim and replace it */
-			if (i == NUM_TLB)
+			/* look in the swapfile (if the faulting address is not in code segment) */
+			if (segment != 1)
 			{
-				/*select a victim to be replaced*/
-				victim = tlb_get_rr_victim();
-
-				/*write on the victim entry the new value*/
-				count_tlb_miss_replace++;
-				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
-
-				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
-				tlb_write(ehi, elo, victim);
-				splx(spl);
+				result = swap_in(faultaddress);
+			}
+			else
+			{
+				result = 1;
 			}
 
-			/* load page at vaddr = faultaddress */
-			result = load_page(page_offset_from_segbase, faultaddress, segment);
+
+
 			if (result)
 			{
-				return -1;
+				/* load page at vaddr = faultaddress if not in swapfile */
+				result = load_page(page_offset_from_segbase, faultaddress, segment);
+				if (result)
+				{
+					return -1;
+				}
 			}
+
+
+			setLoading(0, paddr/PAGE_SIZE);
 			/* after loading the page, set the entry to READ_ONLY in case of code page */
 			if (segment == 1)
 			{
 				/* Disable interrupts on this CPU while frobbing the TLB. */
 				spl = splhigh();
-				tlb_entry = tlb_probe(ehi, 0);
+				tlb_entry = tlb_probe(faultaddress, 0);
 				KASSERT(tlb_entry >= 0);
-				/* use !TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
-				tlb_write(ehi, elo & !TLBLO_DIRTY, tlb_entry);
+				/* use ~TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
+				tlb_write(ehi, elo & ~TLBLO_DIRTY, tlb_entry);
+
 				splx(spl);
 			}
 			return 0;
@@ -221,12 +283,6 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		{
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-
-			if (paddr == 0)
-			{
-				paddr = get_victim();
-			}
-			/* zero fill stack */
 
 			KASSERT(paddr != 0);
 			/* 
@@ -237,73 +293,61 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				return -1;
 			}
+			
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
 
-			/* Disable interrupts on this CPU while frobbing the TLB. */
-			spl = splhigh();
+			update_tlb(faultaddress, paddr);
 
-			/* add entry in the TLB */
-			for (i = 0; i < NUM_TLB; i++)
+			result = swap_in(faultaddress);
+			if (result)
 			{
-				tlb_read(&ehi, &elo, i);
-				if (elo & TLBLO_VALID)
+				/* zero fill stack */
+				for (int i = 0; i < PAGE_SIZE; i++)
 				{
-					continue;
+					((char *)faultaddress)[i] = 0;
 				}
-				count_tlb_miss_free++;
-				DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
-
-				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
-				tlb_write(ehi, elo, i);
-				splx(spl);
-				break;
-			}
-			/* if all entry are occupied, find a victim and replace it */
-			if (i == NUM_TLB)
-			{
-				/*select a victim to be replaced*/
-				victim = tlb_get_rr_victim();
-
-				/*write on the victim entry the new value*/
-				count_tlb_miss_replace++;
-				DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
-
-				ehi = faultaddress;
-				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-				DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
-				tlb_write(ehi, elo, victim);
-				splx(spl);
 			}
 		}
+
 		return 0;
 	}
-
-	/* make sure it's page-aligned */
-	KASSERT((paddr & PAGE_FRAME) == paddr);
-
-	/* Disable interrupts on this CPU while frobbing the TLB. */
-	spl = splhigh();
-
-	for (i = 0; i < NUM_TLB; i++)
+	else
 	{
-		tlb_read(&ehi, &elo, i);
-		if (elo & TLBLO_VALID)
-		{
-			continue;
-		}
-		count_tlb_miss_free++;
-		DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
-		ehi = faultaddress;
-		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
-		tlb_write(ehi, elo, i);
-		splx(spl);
-		return 0;
+		/* make sure it's page-aligned */
+		KASSERT((paddr & PAGE_FRAME) == paddr);
+
+		/* Disable interrupts on this CPU while frobbing the TLB. */
+		spl = splhigh();
+
+		for (i = 0; i < NUM_TLB; i++)
+		{
+			tlb_read(&ehi, &elo, i);
+			if (elo & TLBLO_VALID)
+			{
+				continue;
+			}
+			count_tlb_miss_free++;
+			DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
+
+			ehi = faultaddress;
+			if (segment == 1 && !isLoading(paddr/PAGE_SIZE) )
+			{
+				elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
+
+			}
+			else
+			{
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+			}
+
+			DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
+			tlb_write(ehi, elo, i);
+			splx(spl);
+			return 0;
+		}
 	}
 	/*select a victim to be replaced*/
 	victim = tlb_get_rr_victim();
@@ -313,7 +357,15 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 	ehi = faultaddress;
-	elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+	if (segment == 1 && !isLoading(paddr/PAGE_SIZE))
+	{
+		elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
+
+	}
+	else
+	{
+		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+	}
 	DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 	tlb_write(ehi, elo, victim);
 	splx(spl);

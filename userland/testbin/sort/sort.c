@@ -39,10 +39,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
+#include <stdio.h>
 
 /* Larger than physical memory */
-#define SIZE  (144*1024)
-
+#define SIZE (144 * 1024)
 
 /*
  * Quicksort.
@@ -54,82 +54,90 @@
  * Also, quicksort has somewhat more interesting memory usage patterns.
  */
 
-static
-void
+static void
 sort(int *arr, int size)
 {
 	static int tmp[SIZE];
 	int pivot, i, j, k;
 
-	if (size<2) {
+	if (size < 2)
+	{
 		return;
 	}
 
-	pivot = size/2;
+	pivot = size / 2;
 	sort(arr, pivot);
-	sort(&arr[pivot], size-pivot);
+	sort(&arr[pivot], size - pivot);
 
 	i = 0;
 	j = pivot;
 	k = 0;
-	while (i<pivot && j<size) {
-		if (arr[i] < arr[j]) {
+	while (i < pivot && j < size)
+	{
+		if (arr[i] < arr[j])
+		{
 			tmp[k++] = arr[i++];
 		}
-		else {
+		else
+		{
 			tmp[k++] = arr[j++];
 		}
 	}
-	while (i<pivot) {
+	while (i < pivot)
+	{
 		tmp[k++] = arr[i++];
 	}
-	while (j<size) {
+	while (j < size)
+	{
 		tmp[k++] = arr[j++];
 	}
 
-	memcpy(arr, tmp, size*sizeof(int));
+	memcpy(arr, tmp, size * sizeof(int));
 }
 
 ////////////////////////////////////////////////////////////
 
 static int A[SIZE];
 
-static
-void
+static void
 initarray(void)
 {
-	int i;
 
-	/*
-	 * Initialize the array, with pseudo-random but deterministic contents.
-	 */
-	srandom(533);
-
-	for (i = 0; i < SIZE; i++) {
-		A[i] = random();
-	}
+  int i;
+  
+     /*
+      * Initialize the array, with pseudo-random but deterministic contents.
+      */
+    
+  
+     for (i = 0; i < SIZE; i++) {
+         A[i] = i;
+     }
 }
 
-static
-void
+static void
 check(void)
-{
+{	
 	int i;
-
-	for (i=0; i<SIZE-1; i++) {
-		if (A[i] > A[i+1]) {
+	
+	for (i = 0; i < SIZE - 1; i++)
+	{	
+		if (A[i] > A[i + 1])
+		{
 			errx(1, "Failed: A[%d] is %d, A[%d] is %d",
-			     i, A[i], i+1, A[i+1]);
+				 i, A[i], i + 1, A[i + 1]);
 		}
 	}
 	warnx("Passed.");
 }
 
-int
-main(void)
-{
+int main(void)
+{	
 	initarray();
+
 	sort(A, SIZE);
+
 	check();
+
 	return 0;
 }

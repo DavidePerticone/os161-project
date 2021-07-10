@@ -85,6 +85,7 @@ proc_init_waitpid(struct proc *proc, const char *name) {
       processTable.proc[i] = proc;
       processTable.last_i = i;
       proc->p_pid = i;
+	  kprintf("Assigned PID: %d\n", i);
       break;
     }
     i++;
@@ -104,6 +105,15 @@ proc_init_waitpid(struct proc *proc, const char *name) {
   (void)name;
 #endif
 }
+
+#if OPT_SWAPFILE
+
+struct addrspace* pid_getas(pid_t pid){
+	KASSERT(pid > 0 && pid<MAX_PROC+1);
+	return processTable.proc[pid]->p_addrspace;
+}
+
+#endif
 
 
 /*
