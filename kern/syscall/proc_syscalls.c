@@ -16,6 +16,7 @@
 #include <addrspace.h>
 #include <pt.h>
 #include <current.h>
+#include <swapfile.h>
 
 /*
  * simple proc management system calls
@@ -23,7 +24,7 @@
 void
 sys__exit(int status)
 {
-  pid_t pid = curproc ->p_pid;
+  pid_t pid = curproc->p_pid;
   /* get address space of current process and destroy */
   struct addrspace *as = proc_getas();
   as_destroy(as);
@@ -31,7 +32,9 @@ sys__exit(int status)
   kprintf("PID: %d\n", pid);
   free_ipt_process(pid);
   /* TODO: free swap_table entries when process exits */
+  free_swap_table(pid);
   print_ipt();
+  print_swap();
 
   thread_exit();
 

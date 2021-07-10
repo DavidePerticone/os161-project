@@ -57,6 +57,10 @@ void print_ipt(void)
     int i;
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
+
+    kprintf("<< IPT >>\n");
+
+
     for (i = 0; i < nRamFrames; i++)
     {
         kprintf("%d -   %d   - %d\n", i, ipt[i].pid, ipt[i].vaddr / PAGE_SIZE);
