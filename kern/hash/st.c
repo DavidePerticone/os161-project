@@ -105,8 +105,11 @@ link deleteR(link x, Key k)
     return x;
 }
 
-void STdelete(ST st, Key k)
+void STdelete(ST st, pid_t pid, vaddr_t addr)
 {
+    Key k;
+    k.kpid = pid;
+    k.kaddr = addr;
     int i = hashU(k, st->M);
     st->heads[i] = deleteR(st->heads[i], k);
 
