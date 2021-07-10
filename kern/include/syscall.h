@@ -69,6 +69,9 @@ struct openfile;
 void openfileIncrRefCount(struct openfile *of);
 int sys_open(userptr_t path, int openflags, mode_t mode, int *errp);
 int sys_close(int fd);
+int sys_lseek(int fd, off_t offset, int whence, int *retval);
+int file_seek(struct openfile *of, off_t offset, int whence, int *errcode);
+bool filedes_is_seekable(struct openfile *of);
 #endif
 int sys_write(int fd, userptr_t buf_ptr, size_t size);
 int sys_read(int fd, userptr_t buf_ptr, size_t size);

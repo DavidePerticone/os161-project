@@ -487,11 +487,20 @@ defoption waitpid
 
 ########################################
 #                                      #
-#           SYS CALLS	               #
+#              SYS CALLS	       #
 #                                      #
 ########################################
 defoption syscalls
 optfile syscalls syscall/file_syscalls.c
 optfile syscalls syscall/proc_syscalls.c
+
+########################################
+#                                      #
+#             HASH TABLE	       #
+#                                      #
+########################################
+defoption hash
+optfile hash hash/st.c
+optfile hash hash/item.c
 
 

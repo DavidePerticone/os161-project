@@ -111,7 +111,6 @@ void syscall(struct trapframe *tf)
 		break;
 
 #if OPT_SYSCALLS
-#if 0
 	case SYS_open:
 		retval = sys_open((userptr_t)tf->tf_a0,
 				(int)tf->tf_a1,
@@ -121,6 +120,7 @@ void syscall(struct trapframe *tf)
 		else
 			err = 0;
 		break;
+
 	case SYS_close:
 		retval = sys_close((int)tf->tf_a0);
 		if (retval < 0)
@@ -128,11 +128,16 @@ void syscall(struct trapframe *tf)
 		else
 			err = 0; 
 		break;
+
 	case SYS_remove:
 		/* just ignore: do nothing */
 		retval = 0;
 		break;
-#endif
+
+	case SYS_lseek:
+		err = sys_lseek((int)tf->tf_a0, (off_t)tf->tf_a1, (int)tf->tf_a2, &retval);
+		break;
+
 	case SYS_write:
 		retval = sys_write((int)tf->tf_a0,
 						(userptr_t)tf->tf_a1,
@@ -143,6 +148,7 @@ void syscall(struct trapframe *tf)
 		else
 			err = 0;
 		break;
+		
 	case SYS_read:
 		retval = sys_read((int)tf->tf_a0,
 						(userptr_t)tf->tf_a1,
@@ -153,6 +159,7 @@ void syscall(struct trapframe *tf)
 		else
 			err = 0;
 		break;
+
 	case SYS__exit:
 		/* TODO: just avoid crash */
 		sys__exit((int)tf->tf_a0);
