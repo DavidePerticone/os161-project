@@ -18,15 +18,15 @@
 #include <current.h>
 #include <swapfile.h>
 
+#define PRINT_TABLES 0
+
 /*
  * simple proc management system calls
  */
-void
-sys__exit(int status)
+void sys__exit(int status)
 {
-     
 
-  pid_t pid = curproc ->p_pid;
+  pid_t pid = curproc->p_pid;
   /* get address space of current process and destroy */
   struct addrspace *as = proc_getas();
   as_destroy(as);
@@ -34,11 +34,13 @@ sys__exit(int status)
   free_ipt_process(pid);
   /* TODO: free swap_table entries when process exits */
   free_swap_table(pid);
+#if PRINT_TABLES
   print_ipt();
   print_swap();
+#endif
 
   thread_exit();
 
   panic("thread_exit returned (should not happen)\n");
-  (void) status; // TODO: status handling
+  (void)status; // TODO: status handling
 }

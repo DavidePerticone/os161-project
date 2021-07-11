@@ -147,17 +147,7 @@ file_write_paddr(struct vnode *vn, paddr_t buf_ptr, size_t size, off_t offset)
 
 
 
-static void print_swap(void)
-{
 
-    kprintf("<< SWAP TABLE >>\n");
-
-    for(int i = 0; i < ENTRIES; i++) {
-        kprintf("%d -   %d   - %d\n", i, swap_table[i].pid, swap_table[i].page / PAGE_SIZE);
-    }
-
-
-}
 
 
 /*
@@ -211,10 +201,8 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
 
 
 
-/* TODO: free swap_table entries when process exits */
 void free_swap_table(pid_t pid)
 {
-    // TODO add spinlock
     spinlock_acquire(&swap_lock);
 
     KASSERT(pid >= 0);
@@ -225,7 +213,7 @@ void free_swap_table(pid_t pid)
         }
     }
 
-    spinlock_acquire(&swap_lock);
+    spinlock_release(&swap_lock);
 }
 
 void print_swap(void)
@@ -239,6 +227,6 @@ void print_swap(void)
         kprintf("%d -   %d   - %d\n", i, swap_table[i].pid, swap_table[i].page / PAGE_SIZE);
     }
 
-    spinlock_acquire(&swap_lock);
+    spinlock_release(&swap_lock);
 
 }
