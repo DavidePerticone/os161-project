@@ -81,7 +81,7 @@ load_segment(struct addrspace *as, struct vnode *v,
 	 * diagnostic tool. Note that it must be disabled again before
 	 * you submit your code for grading.*/
 
-#if 1
+#if 0
 	{
 		size_t fillamt;
 
@@ -99,7 +99,7 @@ load_segment(struct addrspace *as, struct vnode *v,
 	return result;
 }
 
-int load_page(vaddr_t page, vaddr_t vaddr, int segment)
+int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment)
 {
 
 	int bytes_toread_from_file;
@@ -151,14 +151,14 @@ int load_page(vaddr_t page, vaddr_t vaddr, int segment)
 	}
 
 	/* must be equal */
-	KASSERT(vaddr == ((ph.p_vaddr & PAGE_FRAME) + page));
+	KASSERT(vaddr == ((ph.p_vaddr & PAGE_FRAME) + page_offset_from_segbase));
 	/* prepare data to give to load_segment */
 
+	int bytes_to_align_first =  ph.p_vaddr - (ph.p_vaddr & PAGE_FRAME);
 
 	/* if the page we want is greater than the segment size, it means that we have to just allocate an empty page */
-	if (page >= ph.p_filesz)
+	if (page_offset_from_segbase >= ph.p_filesz + bytes_to_align_first)
 	{
-		
 		result = 0;
 	}
 	else /* else, we have to read from file */
@@ -166,21 +166,32 @@ int load_page(vaddr_t page, vaddr_t vaddr, int segment)
 		/* 
 		 * load the needed page .
 		 */
-		
+
+		/* if we want to read the first page */
+		if (page_offset_from_segbase == 0)
+		{
+			/* if we are in the first page, we have to read starting from the first used vaddr */
+			vaddr = ph.p_vaddr;
+			bytes_toread_from_file = ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
+		}
+
 		/*
 		 * if  ph.p_filesz-page (segment size minus offset of page) is less than PAGE_SIZE, 
 		 * read the remaning part (less than PAGE_SIZE)
-		 */		
-		if (ph.p_filesz - page < PAGE_SIZE)
+		 */
+		else if (bytes_to_align_first + ph.p_filesz - page_offset_from_segbase < PAGE_SIZE)
 		{
-			bytes_toread_from_file = ph.p_filesz - page;
+			page_offset_from_segbase = page_offset_from_segbase - PAGE_SIZE + ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
+			bytes_toread_from_file = bytes_to_align_first + ph.p_filesz - page_offset_from_segbase;
 		}
 		/* read PAGE_SIZE */
 		else
 		{
+			page_offset_from_segbase = page_offset_from_segbase - PAGE_SIZE + ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
 			bytes_toread_from_file = PAGE_SIZE;
 		}
-		result = load_segment(curproc->p_addrspace, v, ph.p_offset + page, vaddr,
+
+		result = load_segment(curproc->p_addrspace, v, ph.p_offset + page_offset_from_segbase, vaddr,
 							  PAGE_SIZE, bytes_toread_from_file,
 							  ph.p_flags & PF_X);
 	}

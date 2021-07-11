@@ -85,7 +85,6 @@ proc_init_waitpid(struct proc *proc, const char *name) {
       processTable.proc[i] = proc;
       processTable.last_i = i;
       proc->p_pid = i;
-	  kprintf("Assigned PID: %d\n", i);
       break;
     }
     i++;

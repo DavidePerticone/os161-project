@@ -104,6 +104,12 @@ getfreeppages(unsigned long npages)
     return addr;
 }
 
+static void
+as_zero_region(paddr_t paddr, unsigned npages)
+{
+    bzero((void *)PADDR_TO_KVADDR(paddr), npages * PAGE_SIZE);
+}
+
 paddr_t
 getppages(unsigned long npages)
 {
@@ -121,8 +127,9 @@ getppages(unsigned long npages)
         spinlock_acquire(&stealmem_lock);
         paddr = ram_stealmem(npages);
         spinlock_release(&stealmem_lock);
-    }else{
-        
+    }
+    else
+    {
     }
     if (paddr != 0 && isTableActive())
     {
@@ -131,8 +138,10 @@ getppages(unsigned long npages)
         spinlock_release(&freemem_lock);
     }
 
-    if (paddr == 0  && isTableActive())
+    if (paddr == 0 && isTableActive())
     {
+        /* we can only get one page at a time, otherwise in case of swap problems occur */
+        KASSERT(npages == 1);
         /* get physical and virtual address of victmim */
         paddr = get_victim(&vaddr, &pid_victim);
         /* get address space of the process whose page is the victim */
@@ -140,13 +149,15 @@ getppages(unsigned long npages)
         /* get in which segment the page is */
         victim_segment = address_segment(vaddr, as_victim);
         /* swap page out */
-        result = swap_out(vaddr, victim_segment);
+        result = swap_out(paddr, vaddr, victim_segment);
         if (result)
         {
             return 0;
         }
     }
 
+    KASSERT(paddr != 0);
+    as_zero_region(paddr, npages);
     return paddr;
 }
 

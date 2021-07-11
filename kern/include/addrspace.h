@@ -140,4 +140,7 @@ int as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 
 int load_elf(struct vnode *v, vaddr_t *entrypoint);
 
+
+void dump_pages(vaddr_t vaddr, int npages);
+
 #endif /* _ADDRSPACE_H_ */

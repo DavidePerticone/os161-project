@@ -5,13 +5,18 @@ and set the dirty bit to dirty- In this way, the load of the page causes readonl
 DONE: we should swap out a page when doing getppages. In this way also the kernel can get pages
 when memory is full.
 
-TO IMPLEMENT: zero pages when allocating them
-
 DONE: swap of only data and stack pages: code should be trown out
 
-TO DO: insert various locks and synch mechanism
 
-TO DO: set -1 pid swap_table when process terminates
+
+IMPLEMENTED: zero pages when allocating them
+
+IMPLEMENTE: insert various locks and synch mechanism
+
+IMPLEMENTE: set -1 pid swap_table when process terminates
+
+IMPLEMENTE: file_write_paddr receives vaddr instead of paddr. Basically, it works because we swap out only pages
+owned by the current process, and the problem of traslation virtual to physical does not present.
 
 */
 
@@ -191,7 +196,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	/* get in which segment the faulting address is */
 	segment = address_segment(faultaddress, as);
 	if (segment == EFAULT)
-	{
+	{		
+		print_ipt();
 		return EFAULT;
 	}
 
@@ -229,18 +235,13 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				return -1;
 			}
-			setLoading(1, paddr/PAGE_SIZE);
+			setLoading(1, paddr / PAGE_SIZE);
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
 
 			update_tlb(faultaddress, paddr);
 
-			/* zero fill stack */
-			for (int i = 0; i < PAGE_SIZE; i++)
-			{
-				((char *)faultaddress)[i] = 0;
-			}
 			/* look in the swapfile (if the faulting address is not in code segment) */
 			if (segment != 1)
 			{
@@ -250,8 +251,6 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				result = 1;
 			}
-
-
 
 			if (result)
 			{
@@ -263,13 +262,15 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				}
 			}
 
+			setLoading(0, paddr / PAGE_SIZE);
 
-			setLoading(0, paddr/PAGE_SIZE);
+			
 			/* after loading the page, set the entry to READ_ONLY in case of code page */
 			if (segment == 1)
 			{
 				/* Disable interrupts on this CPU while frobbing the TLB. */
 				spl = splhigh();
+
 				tlb_entry = tlb_probe(faultaddress, 0);
 				KASSERT(tlb_entry >= 0);
 				/* use ~TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
@@ -293,7 +294,6 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				return -1;
 			}
-			
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
@@ -301,14 +301,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			update_tlb(faultaddress, paddr);
 
 			result = swap_in(faultaddress);
-			if (result)
-			{
-				/* zero fill stack */
-				for (int i = 0; i < PAGE_SIZE; i++)
-				{
-					((char *)faultaddress)[i] = 0;
-				}
-			}
+			
 		}
 
 		return 0;
@@ -333,10 +326,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
 
 			ehi = faultaddress;
-			if (segment == 1 && !isLoading(paddr/PAGE_SIZE) )
+			if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
 			{
 				elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
-
 			}
 			else
 			{
@@ -345,7 +337,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 
 			DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 			tlb_write(ehi, elo, i);
+
 			splx(spl);
+
 			return 0;
 		}
 	}
@@ -357,10 +351,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 	ehi = faultaddress;
-	if (segment == 1 && !isLoading(paddr/PAGE_SIZE))
+	if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
 	{
 		elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
-
 	}
 	else
 	{
@@ -369,6 +362,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 	tlb_write(ehi, elo, victim);
 	splx(spl);
+
 	return 0;
 }
 
