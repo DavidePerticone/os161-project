@@ -78,8 +78,8 @@ void vm_bootstrap(void)
   {
     return;
   }
-  result=init_allocSize(nRamFrames);
-  if ( result )
+  result = init_allocSize(nRamFrames);
+  if (result)
   {
     /* reset to disable this vm management */
     destroy_freeRamFrames();
@@ -91,15 +91,13 @@ void vm_bootstrap(void)
   /*allocation and deallocation of all ram to avoid using ram_stealmem*/
   firstpaddr = ram_getfirstfreeafterbootstrap(); /* get address of first free page */
   occupiedpages = ((int)firstpaddr) / PAGE_SIZE; /* calculate occupied pages by kernel */
-  init_victim(); /* set first victim to the first available page (not used by kernel) */
-  freepages = nRamFrames - occupiedpages; /* calculate free pages remaining*/
-  addr = alloc_kpages(freepages);         /*allocate all pages available*/
-  free_kpages(addr);                      /* deallocate all pages previously allocated */
-  
+  init_victim();                                 /* set first victim to the first available page (not used by kernel) */
+  freepages = nRamFrames - occupiedpages;        /* calculate free pages remaining*/
+  addr = alloc_kpages(freepages);                /*allocate all pages available*/
+  free_kpages(addr);                             /* deallocate all pages previously allocated */
 }
 
-static void
-vm_can_sleep(void)
+static void vm_can_sleep(void)
 {
   if (CURCPU_EXISTS())
   {
@@ -112,8 +110,7 @@ vm_can_sleep(void)
 }
 
 /* Allocate/free some kernel-space virtual pages */
-vaddr_t
-alloc_kpages(unsigned npages)
+vaddr_t alloc_kpages(unsigned npages)
 {
   paddr_t pa;
 
@@ -138,8 +135,7 @@ void free_kpages(vaddr_t addr)
   }
 }
 
-struct addrspace *
-as_create(void)
+struct addrspace *as_create(void)
 {
   struct addrspace *as;
 
@@ -287,3 +283,4 @@ int as_define_stack(struct addrspace *as, vaddr_t *stackptr)
   *stackptr = USERSTACK;
   return 0;
 }
+
