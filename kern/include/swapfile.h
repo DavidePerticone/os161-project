@@ -14,6 +14,9 @@ void init_swapfile(void);
 int swap_in(vaddr_t page);
 int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim);
 
+void free_swap_table(pid_t pid);
+void print_swap(void);
+
 
 #endif
 

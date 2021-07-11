@@ -16,6 +16,7 @@
 #include <addrspace.h>
 #include <pt.h>
 #include <current.h>
+#include <swapfile.h>
 
 /*
  * simple proc management system calls
@@ -32,7 +33,9 @@ sys__exit(int status)
   /* thread exits. proc data structure will be lost */
   free_ipt_process(pid);
   /* TODO: free swap_table entries when process exits */
+  free_swap_table(pid);
   print_ipt();
+  print_swap();
 
   thread_exit();
 

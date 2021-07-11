@@ -21,6 +21,8 @@ int swap_fd;
 
 static struct swap_entry swap_table[ENTRIES];
 static struct vnode *v = NULL;
+static struct spinlock swap_lock = SPINLOCK_INITIALIZER;
+
 
 /* 
  * Initialize swapfile. If the file does not exists, it is created.
@@ -31,11 +33,13 @@ void init_swapfile(void)
     int i, result;
     result = vfs_open((char *)"./swapfile", O_RDWR | O_CREAT | O_TRUNC, 777, &v);
     KASSERT(result != -1);
-
+    spinlock_acquire(&swap_lock);
     for (i = 0; i < ENTRIES; i++)
     {
         swap_table[i].pid = -1;
     }
+    spinlock_release(&swap_lock);
+
 }
 
 static int
@@ -80,16 +84,23 @@ int swap_in(vaddr_t page)
     pid = curproc->p_pid;
 
     /* page must be in swap file */
+    spinlock_acquire(&swap_lock);
     for (i = 0; i < ENTRIES; i++)
     {
         if (swap_table[i].pid == pid && swap_table[i].page == page)
         {
+            //kprintf("Swapping in\n");
+            swap_table[i].pid = -1;
+            spinlock_release(&swap_lock);
             result = file_read_paddr(v, page, PAGE_SIZE, i * PAGE_SIZE);
             KASSERT(result == PAGE_SIZE);
-            swap_table[i].pid = -1;
+            
+
             return 0;
         }
     }
+
+    spinlock_release(&swap_lock);
 
     return 1;
 }
@@ -171,11 +182,14 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
 
     pid = curproc->p_pid;
 
-
+    spinlock_acquire(&swap_lock);
     for (i = 0; i < ENTRIES; i++)
     {
         if (swap_table[i].pid == -1)
         {
+            swap_table[i].pid = pid;
+            swap_table[i].page = vaddr;
+            spinlock_release(&swap_lock);
 
             result = file_write_paddr(v, paddr, PAGE_SIZE, i * PAGE_SIZE);
             if (result != PAGE_SIZE)
@@ -184,14 +198,47 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
             }
 
             KASSERT(result >= 0);
-            swap_table[i].pid = pid;
-            swap_table[i].page = vaddr;
+            
             return 0;
         }
     }
+    spinlock_release(&swap_lock);
 
     print_swap();
 
     panic("Out of swapspace\n");
 }
 
+
+
+/* TODO: free swap_table entries when process exits */
+void free_swap_table(pid_t pid)
+{
+    // TODO add spinlock
+    spinlock_acquire(&swap_lock);
+
+    KASSERT(pid >= 0);
+
+    for(int i = 0; i < ENTRIES; i++) {
+        if(swap_table[i].pid == pid) {
+            swap_table[i].pid = -1;
+        }
+    }
+
+    spinlock_acquire(&swap_lock);
+}
+
+void print_swap(void)
+{
+
+    spinlock_acquire(&swap_lock);
+
+    kprintf("<< SWAP TABLE >>\n");
+
+    for(int i = 0; i < ENTRIES; i++) {
+        kprintf("%d -   %d   - %d\n", i, swap_table[i].pid, swap_table[i].page / PAGE_SIZE);
+    }
+
+    spinlock_acquire(&swap_lock);
+
+}
