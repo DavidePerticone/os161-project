@@ -42,6 +42,7 @@
 #include <coremap.h>
 #include <swapfile.h>
 #include <instrumentation.h>
+#include <st.h>
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
  * assignment, this file is not compiled or linked or in any way
@@ -97,6 +98,7 @@ void vm_bootstrap(void)
   addr = alloc_kpages(freepages);                /*allocate all pages available*/
   free_kpages(addr);                             /* deallocate all pages previously allocated */
   init_instrumentation();
+
 }
 
 static void vm_can_sleep(void)

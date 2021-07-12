@@ -5,18 +5,20 @@
 
 struct item {
   Key key;
-  off_t offset;
+  int index;
 };
 
-Item ITEMscan (pid_t pid, vaddr_t addr, off_t offset) {
+
+Item ITEMscan (pid_t pid, vaddr_t addr, int index) {
   Item tmp = (Item) kmalloc(sizeof(struct item));
   if (tmp == NULL) {
     return ITEMsetvoid();
   } else {
     tmp->key.kaddr = addr;
     tmp->key.kpid = pid;
-    tmp->offset = offset;
+    tmp->index = index;
   }
+
   return tmp;
 }
 
@@ -39,7 +41,7 @@ Item ITEMsetvoid(void) {
   KASSERT(tmp != NULL);
   tmp->key.kpid = -1;
   tmp->key.kaddr = -1;
-  tmp->offset = -1;
+  tmp->index = -1;
   return tmp;
 }
 

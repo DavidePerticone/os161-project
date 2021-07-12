@@ -3,6 +3,11 @@
 #include <types.h>
 #include <lib.h>
 
+struct item {
+  Key key;
+  int index;
+};
+
 typedef struct STnode *link;
 link NEW(Item item, link next);
 int hashU(Key v, int M);
@@ -59,9 +64,7 @@ int hashU(Key v, int M)
 void STinsert(ST st, Item item)
 {
     int i;
-
     i = hashU(KEYget(item), st->M);
-
     kprintf(" hash index = %d\n", i);
 
     st->heads[i] = NEW(item, st->heads[i]);
@@ -80,12 +83,13 @@ Item searchST(link t, Key k, link z)
     return (searchST(t->next, k, z));
 }
 
-Item STsearch(ST st, pid_t pid, vaddr_t addr)
+int STsearch(ST st, pid_t pid, vaddr_t addr)
 {
     Key k;
     k.kaddr = addr;
     k.kpid = pid;
-    return searchST(st->heads[hashU(k, st->M)], k, st->z);
+    Item res = searchST(st->heads[hashU(k, st->M)], k, st->z);
+    return res->index;
 }
 
 link deleteR(link x, Key k)
@@ -132,7 +136,7 @@ void STdisplay(ST st)
 
     for (i = 0; i < st->M; i++)
     {
-        kprintf("st->heads[%d]: ", i);
+        kprintf("st->heads[%d]: %d", i, st->heads[i]->item->key.kaddr);
         visitR(st->heads[i], st->z);
         kprintf("\n");
     }
