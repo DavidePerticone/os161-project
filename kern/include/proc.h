@@ -37,12 +37,12 @@
  */
 
 #include <spinlock.h>
-#include <opt-waitpid.h>
 #include <opt-virtualmem.h>
 #include <opt-swapfile.h>
 #include <elf.h>
 #include <limits.h>
 #include <syscall.h>
+#include "opt-waitpid.h"
 struct addrspace;
 struct thread;
 struct vnode;
@@ -65,31 +65,31 @@ struct vnode;
  * without sleeping.
  */
 
-
-
-struct proc {
+struct proc
+{
 	char *p_name;			/* Name of this process */
+	unsigned p_numthreads;	/* Number of threads in this process */
 	struct spinlock p_lock;		/* Lock for this structure */
-	unsigned p_numthreads;		/* Number of threads in this process */
-
 	/* VM */
-	struct addrspace *p_addrspace;	/* virtual address space */
+	struct addrspace *p_addrspace; /* virtual address space */
 
 	/* VFS */
-	struct vnode *p_cwd;		/* current working directory */
+	struct vnode *p_cwd; /* current working directory */
 
-	#if OPT_WAITPID
-        int p_status;                   /* status as obtained by exit() */
-        pid_t p_pid;                    /* process pid */
-	#endif
+#if OPT_WAITPID
+	int p_status; /* status as obtained by exit() */
+	pid_t p_pid;  /* process pid */
+	struct cv *p_cv;
+	struct lock *p_wlock;
+#endif
 
-	#if OPT_VIRTUALMEM
-		Elf_Ehdr p_eh;
-	#endif
+#if OPT_VIRTUALMEM
+	Elf_Ehdr p_eh;
+#endif
 
-	#if OPT_SWAPFILE
-        struct openfile *fileTable[OPEN_MAX];
-	#endif
+#if OPT_SWAPFILE
+	struct openfile *fileTable[OPEN_MAX];
+#endif
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -117,7 +117,12 @@ struct addrspace *proc_getas(void);
 struct addrspace *proc_setas(struct addrspace *);
 
 /* Get the address space of a process with pid pid */
-struct addrspace* pid_getas(pid_t pid);
+struct addrspace *pid_getas(pid_t pid);
 
+/* wait for process termination, and return exit status */
+int proc_wait(struct proc *proc);
+
+/* get proc from pid */
+struct proc *proc_search_pid(pid_t pid);
 
 #endif /* _PROC_H_ */

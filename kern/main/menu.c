@@ -45,7 +45,8 @@
 #include <test.h>
 #include "opt-sfs.h"
 #include "opt-net.h"
-
+#include "opt-virtualmem.h"
+#include <instrumentation.h>
 /*
  * In-kernel menu and command dispatcher.
  */
@@ -95,6 +96,8 @@ cmd_progthread(void *ptr, unsigned long nargs)
 		return;
 	}
 
+	
+
 	/* NOTREACHED: runprogram only returns on error. */
 }
 
@@ -132,6 +135,14 @@ common_prog(int nargs, char **args)
 		proc_destroy(proc);
 		return result;
 	}
+
+		/* wait for the newly created process */
+	if((result=sys_waitpid(proc->p_pid, (userptr_t)&result, 0)) == -1){
+	    kprintf("waiting for process failed\n");
+	    return 0;
+	}
+
+	kprintf("Process returned with exit value %d\n", result);
 
 	/*
 	 * The new process will be destroyed when the program exits...
@@ -352,6 +363,8 @@ cmd_quit(int nargs, char **args)
 {
 	(void)nargs;
 	(void)args;
+
+	
 
 	vfs_sync();
 	sys_reboot(RB_POWEROFF);

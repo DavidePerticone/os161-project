@@ -37,6 +37,11 @@
 #include <syscall.h>
 #include <opt-swapfile.h>
 #include <opt-syscalls.h>
+#include <opt-waitpid.h>
+#include <synch.h>
+
+
+
 
 /*
  * System call dispatcher.
@@ -110,11 +115,33 @@ void syscall(struct trapframe *tf)
 						 (userptr_t)tf->tf_a1);
 		break;
 
+#if OPT_WAITPID
+
+	case SYS_waitpid:
+		retval = sys_waitpid((pid_t)tf->tf_a0,
+							 (userptr_t)tf->tf_a1,
+							 (int)tf->tf_a2);
+		if (retval < 0)
+			err = ENOSYS;
+		else
+			err = 0;
+		break;
+	case SYS_getpid:
+		retval = sys_getpid();
+		if (retval < 0)
+			err = ENOSYS;
+		else
+			err = 0;
+		break;
+
+#endif
+
+
 #if OPT_SYSCALLS
 	case SYS_open:
 		retval = sys_open((userptr_t)tf->tf_a0,
-				(int)tf->tf_a1,
-				(mode_t)tf->tf_a2, &err);
+						  (int)tf->tf_a1,
+						  (mode_t)tf->tf_a2, &err);
 		if (retval < 0)
 			err = ENOSYS;
 		else
@@ -126,7 +153,7 @@ void syscall(struct trapframe *tf)
 		if (retval < 0)
 			err = ENOSYS;
 		else
-			err = 0; 
+			err = 0;
 		break;
 
 	case SYS_remove:
@@ -140,19 +167,19 @@ void syscall(struct trapframe *tf)
 
 	case SYS_write:
 		retval = sys_write((int)tf->tf_a0,
-						(userptr_t)tf->tf_a1,
-						(size_t)tf->tf_a2);
+						   (userptr_t)tf->tf_a1,
+						   (size_t)tf->tf_a2);
 		/* error: function not implemented */
 		if (retval < 0)
 			err = ENOSYS;
 		else
 			err = 0;
 		break;
-		
+
 	case SYS_read:
 		retval = sys_read((int)tf->tf_a0,
-						(userptr_t)tf->tf_a1,
-						(size_t)tf->tf_a2);
+						  (userptr_t)tf->tf_a1,
+						  (size_t)tf->tf_a2);
 		/* error: function not implemented */
 		if (retval < 0)
 			err = ENOSYS;
@@ -166,6 +193,7 @@ void syscall(struct trapframe *tf)
 		err = 0;
 		break;
 #endif
+
 
 	default:
 		kprintf("Unknown syscall %d\n", callno);

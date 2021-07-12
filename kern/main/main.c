@@ -53,6 +53,7 @@
 #include "opt-virtualmem.h"
 #include "opt-swapfile.h"
 #include "swapfile.h"
+#include <addrspace.h>
 
 
 /*
@@ -157,7 +158,7 @@ shutdown(void)
 {
 
 	kprintf("Shutting down.\n");
-
+	vm_shutdown();
 	vfs_clearbootfs();
 	vfs_clearcurdir();
 	vfs_unmountall();

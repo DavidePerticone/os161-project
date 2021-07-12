@@ -11,7 +11,7 @@
 #include <kern/fcntl.h>
 #include <segments.h>
 #include <vfs.h>
-
+#include <instrumentation.h>
 /*
  * Load a segment at virtual address VADDR. The segment in memory
  * extends from VADDR up to (but not including) VADDR+MEMSIZE. The
@@ -150,19 +150,62 @@ int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment)
 		return ENOEXEC;
 	}
 
-	/* must be equal */
+	/*
+	 * IMPORTANT!
+	 * It is very much worth noticing the following.
+	 * When we need to load a page, three cases can occur:
+	 * 
+	 * 1)We must load the first page of the segment
+	 * 2)We must load an intermediate page of the segment
+	 * 3)We must load the last page of the segment
+	 * 
+	 * Depending on the case, the behaviour must be different.
+	 * In the case (1), it is IMPORTANT to understand that we have to load the the first page
+	 * starting from the vaddr of the segment. With an example, when we load a page, it could happen
+	 * that the starting address is not page align: (page boundery)00444 (where 0 means not used).
+	 * It is clear that the segment does not start at a multiple of a page. This MUST be taken into
+	 * account when loading the first page, as well as all the others.
+	 * When we load the first page, the amount of byte to read from the file could be not multiple of 
+	 * a page: this implies that less than PAGE_SIZE must be read (precisily, we have to read from
+	 * the starting address to the following page multiple).
+	 * 
+	 * When we are in case (2), any page we want to read is page aligned (properly, the first used address of 
+	 * that page is aligned). This simplifies a bit things. Unfortunately, we have to keep into account that 
+	 * the offset inside the file is calculated starting from the first address used in the first page, and not from
+	 * the start of the page-aligned segment (they could be the same, if starting address is a multiple of a page).
+	 * This means that if a segment first address is not multiple of a page, we have a segment like the following 00444 4444
+	 * but on file it will be stored as 444 4444. When calculating the true offset inside the file to load the right page,
+	 * we have to considering the fact that the initial padding is missing in the file. 
+	 * Indeed, page_offset_from_segbase is the offset from the page-aligned segment and not from the first address.
+	 * This means that we have to add the initial padding to any calculation we will perform, if we want things to work.
+	 * 
+	 * In the last case, (3), things are easy and similar to (2). The only true difference is that the amount of bytes
+	 * that we read could be less than PAGE_SIZE. For example: 0444 4444 4400. In this case, when reading the last page, we 
+	 * have to read just 44 and not the whole page (which is not present in the file). This can be easily prevented.
+	 */ 
+
+
+	/* 
+	 * vaddr is the address of the page where the fault occured, that must be equal to the page-aligned
+	 * starting segment address + the offset from it of the page we want to read.
+	 */
 	KASSERT(vaddr == ((ph.p_vaddr & PAGE_FRAME) + page_offset_from_segbase));
-	/* prepare data to give to load_segment */
+	
+	/* bytes_to_align_first stores the padding bytes (if any) of the first page (example: 00044, it will contain 3) */
 
 	int bytes_to_align_first =  ph.p_vaddr - (ph.p_vaddr & PAGE_FRAME);
 
 	/* if the page we want is greater than the segment size, it means that we have to just allocate an empty page */
 	if (page_offset_from_segbase >= ph.p_filesz + bytes_to_align_first)
 	{
+		increase(NEW_PAGE_ZEROED);
 		result = 0;
 	}
 	else /* else, we have to read from file */
-	{
+	{	
+		increase(FAULT_WITH_LOAD);
+		increase(FAULT_WITH_ELF_LOAD);
+
 		/* 
 		 * load the needed page .
 		 */
@@ -172,6 +215,7 @@ int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment)
 		{
 			/* if we are in the first page, we have to read starting from the first used vaddr */
 			vaddr = ph.p_vaddr;
+			/* amount of bytes to read */
 			bytes_toread_from_file = ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
 		}
 
@@ -181,6 +225,7 @@ int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment)
 		 */
 		else if (bytes_to_align_first + ph.p_filesz - page_offset_from_segbase < PAGE_SIZE)
 		{
+			/* we have to compesate for the possible padding present in the first page */
 			page_offset_from_segbase = page_offset_from_segbase - PAGE_SIZE + ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
 			bytes_toread_from_file = bytes_to_align_first + ph.p_filesz - page_offset_from_segbase;
 		}

@@ -143,4 +143,6 @@ int load_elf(struct vnode *v, vaddr_t *entrypoint);
 
 void dump_pages(vaddr_t vaddr, int npages);
 
+void vm_shutdown(void);
+
 #endif /* _ADDRSPACE_H_ */

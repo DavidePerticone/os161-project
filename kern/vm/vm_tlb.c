@@ -37,6 +37,7 @@ owned by the current process, and the problem of traslation virtual to physical 
 #include <thread.h>
 #include <swapfile.h>
 #include <syscall.h>
+#include <instrumentation.h>
 
 /* under dumbvm, always have 72k of user stack */
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
@@ -60,8 +61,7 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 		{
 			continue;
 		}
-		//count_tlb_miss_free++;
-		//	DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
+		increase(TLB_MISS_FREE);
 		ehi = faultaddress;
 		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
@@ -74,10 +74,6 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 	{
 		/*select a victim to be replaced*/
 		victim = tlb_get_rr_victim();
-
-		/*write on the victim entry the new value*/
-		//	count_tlb_miss_replace++;
-		//	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 		ehi = faultaddress;
 		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
@@ -144,13 +140,6 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	int segment;
 	int tlb_entry;
 	int result;
-	static int count_tlb_miss = 0;
-	static int count_tlb_miss_free = 0;
-	static int count_tlb_miss_replace = 0;
-
-	/*every time we are in this function, means that a tlb miss occurs*/
-	count_tlb_miss++;
-	DEBUG(DB_VM, "TLB faults -> %d\n", count_tlb_miss);
 
 	faultaddress &= PAGE_FRAME;
 
@@ -196,13 +185,16 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	/* get in which segment the faulting address is */
 	segment = address_segment(faultaddress, as);
 	if (segment == EFAULT)
-	{		
+	{
 		print_ipt();
 		return EFAULT;
 	}
 
+	increase(TLB_MISS);
+
 	/* check if page is in memory */
 	paddr = ipt_lookup(curproc->p_pid, faultaddress);
+
 	/* if it is in memory, paddr will be different than 0 */
 
 	if (paddr == 0)
@@ -219,7 +211,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* TODO should start a cs here? */
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-
+			
 			/* TODO should invalidate the TLB entry of gotten page ? */
 
 			KASSERT(paddr != 0);
@@ -235,6 +227,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				return -1;
 			}
+			/* set the entry in the ipt as still loading, so that others page_fault will set the TLB as not read-only in case of code */
 			setLoading(1, paddr / PAGE_SIZE);
 
 			/* make sure it's page-aligned */
@@ -261,10 +254,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 					return -1;
 				}
 			}
-
+			/* set the entry in the ipt as not loading, so that it can be set as read-only in case of code segment */
 			setLoading(0, paddr / PAGE_SIZE);
 
-			
 			/* after loading the page, set the entry to READ_ONLY in case of code page */
 			if (segment == 1)
 			{
@@ -284,6 +276,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		{
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
+			
 
 			KASSERT(paddr != 0);
 			/* 
@@ -301,14 +294,16 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			update_tlb(faultaddress, paddr);
 
 			result = swap_in(faultaddress);
-			
+			if(result){
+				increase(NEW_PAGE_ZEROED);
+			}
 		}
 
 		return 0;
 	}
 	else
 	{
-
+		increase(TLB_RELOAD);
 		/* make sure it's page-aligned */
 		KASSERT((paddr & PAGE_FRAME) == paddr);
 
@@ -322,9 +317,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				continue;
 			}
-			count_tlb_miss_free++;
-			DEBUG(DB_VM, "TLB faults with Free -> %d\n", count_tlb_miss_free);
-
+			increase(TLB_MISS_FREE);
 			ehi = faultaddress;
 			if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
 			{
@@ -338,6 +331,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 			tlb_write(ehi, elo, i);
 
+
 			splx(spl);
 
 			return 0;
@@ -345,10 +339,6 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	}
 	/*select a victim to be replaced*/
 	victim = tlb_get_rr_victim();
-
-	/*write on the victim entry the new value*/
-	count_tlb_miss_replace++;
-	DEBUG(DB_VM, "TLB faults with Replace -> %d\n", count_tlb_miss_replace);
 
 	ehi = faultaddress;
 	if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
@@ -373,6 +363,7 @@ int tlb_get_rr_victim(void)
 	static unsigned int next_victim = 0;
 	victim = next_victim;
 	next_victim = (next_victim + 1) % NUM_TLB;
+	increase(TLB_MISS_FULL);
 	return victim;
 }
 

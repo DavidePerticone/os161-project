@@ -468,6 +468,7 @@ defoption virtualmem
 optfile virtualmem   vm/addrspace.c
 optfile virtualmem vm/segments.c
 optfile virtualmem vm/coremap.c
+optfile virtualmem vm/instrumentation.c
 
 ########################################
 #                                      #
@@ -496,11 +497,17 @@ optfile syscalls syscall/proc_syscalls.c
 
 ########################################
 #                                      #
-#             HASH TABLE	       #
+#             HASH TABLE	            #
 #                                      #
 ########################################
 defoption hash
 optfile hash hash/st.c
 optfile hash hash/item.c
 
+########################################
+#                                      #
+#             LOCKS	                    #
+#                                      #
+########################################
+defoption synch
 

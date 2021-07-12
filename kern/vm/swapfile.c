@@ -13,6 +13,7 @@
 #include <uio.h>
 #include <proc.h>
 #include <kern/errno.h>
+#include <instrumentation.h>
 
 #define MAX_SIZE 1024 * 1024 * 9
 #define ENTRIES (MAX_SIZE / 4096)
@@ -94,14 +95,13 @@ int swap_in(vaddr_t page)
             spinlock_release(&swap_lock);
             result = file_read_paddr(v, page, PAGE_SIZE, i * PAGE_SIZE);
             KASSERT(result == PAGE_SIZE);
-            
-
+            increase(SWAP_IN_PAGE);
+            increase(FAULT_WITH_LOAD);
             return 0;
         }
     }
 
     spinlock_release(&swap_lock);
-
     return 1;
 }
 /*
@@ -188,7 +188,7 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
             }
 
             KASSERT(result >= 0);
-            
+            increase(SWAP_OUT_PAGE);
             return 0;
         }
     }

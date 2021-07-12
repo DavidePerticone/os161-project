@@ -35,6 +35,8 @@
 #include <types.h>
 #include "opt-syscalls.h"
 #include <opt-swapfile.h>
+#include <opt-waitpid.h>
+#include <synch.h> 
 struct trapframe; /* from <machine/trapframe.h> */
 
 /*
@@ -72,10 +74,17 @@ int sys_close(int fd);
 int sys_lseek(int fd, off_t offset, int whence, int *retval);
 int file_seek(struct openfile *of, off_t offset, int whence, int *errcode);
 bool filedes_is_seekable(struct openfile *of);
+int sys_waitpid(pid_t pid, userptr_t statusp, int options);
+pid_t sys_getpid(void);
 #endif
 int sys_write(int fd, userptr_t buf_ptr, size_t size);
 int sys_read(int fd, userptr_t buf_ptr, size_t size);
 void sys__exit(int status);
+#endif
+
+#if OPT_WAITPID
+
+
 #endif
 
 #endif /* _SYSCALL_H_ */
