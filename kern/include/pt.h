@@ -33,7 +33,7 @@ paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr);
 /* set an entry in the ipt */
 int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr);
 int ipt_kadd(pid_t pid, paddr_t paddr, vaddr_t vaddr);
-
+int hash_delete(pid_t pid, vaddr_t vaddr);
 void free_ipt_process(pid_t pid);
 
 #endif

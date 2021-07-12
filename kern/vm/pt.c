@@ -486,6 +486,13 @@ void free_ipt_process(pid_t pid)
     spinlock_release(&ipt_lock);
 }
 
+int hash_delete(pid_t pid, vaddr_t vaddr)
+{
 
+     KASSERT(pid > 0);
+    KASSERT(vaddr < 0x80000000);
+    STdelete(ipt_hash, pid, vaddr);
+    return 0;
+}
 
 #endif

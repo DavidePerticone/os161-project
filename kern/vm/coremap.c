@@ -16,6 +16,8 @@
 #include <swapfile.h>
 #include <syscall.h>
 #include <vm_tlb.h>
+#include <st.h>
+#include <item.h>
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static struct spinlock freemem_lock = SPINLOCK_INITIALIZER;
@@ -150,6 +152,8 @@ getppages(unsigned long npages)
         victim_segment = address_segment(vaddr, as_victim);
         /* swap page out */
         result = swap_out(paddr, vaddr, victim_segment);
+        /* TODO: LOCK */
+        hash_delete(pid_victim, vaddr);
         if (result)
         {
             return 0;
