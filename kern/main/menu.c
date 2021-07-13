@@ -140,7 +140,7 @@ common_prog(int nargs, char **args)
 #if OPT_WAITPID
 	/* wait for the newly created process */
 	result = sys_waitpid(proc->p_pid, (userptr_t)&result, 0);
-#endif
+
 		if ((result) == -1)
 	{
 		kprintf("waiting for process failed\n");
@@ -148,7 +148,7 @@ common_prog(int nargs, char **args)
 	}
 
 	kprintf("Process returned with exit value %d\n", result);
-
+#endif
 	/*
 	 * The new process will be destroyed when the program exits...
 	 * once you write the code for handling that.
