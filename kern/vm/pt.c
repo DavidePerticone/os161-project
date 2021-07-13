@@ -15,8 +15,7 @@
 #include <coremap.h>
 #include <st.h>
 #include <item.h>
-
-
+#include <opt-hash.h>
 
 /* inverted page table */
 static struct ipt_entry *ipt;
@@ -25,9 +24,12 @@ static int last_victim;
 static int victim;
 static struct spinlock ipt_lock = SPINLOCK_INITIALIZER;
 static int ipt_active = 0;
-static ST ipt_hash = NULL;
 
-#if !1
+#if OPT_HASH
+static ST ipt_hash = NULL;
+#endif
+
+#if !OPT_HASH
 void setLoading(int set, int entry)
 {
 
@@ -39,8 +41,8 @@ void setLoading(int set, int entry)
         ipt[entry].vaddr |= LOAD_MASK;
     }
     else
-    {   
-       
+    {
+
         ipt[entry].vaddr &= ~LOAD_MASK;
     }
     spinlock_release(&ipt_lock);
@@ -65,7 +67,6 @@ void print_ipt(void)
     KASSERT(ipt_active);
 
     kprintf("<< IPT >>\n");
-
 
     for (i = 0; i < nRamFrames; i++)
     {
@@ -144,7 +145,6 @@ int create_ipt(void)
 }
 
 /* Given a pid and vaddr, get the physical frame, if in memory */
-/* TODO: Speed up linear search */
 
 paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr)
 {
@@ -159,7 +159,7 @@ paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr)
     {
         if (ipt[i].pid == pid)
         {
-         
+
             if ((ipt[i].vaddr & ~LOAD_MASK) == vaddr)
             {
                 /* if frame is in memory return its physical address */
@@ -185,7 +185,6 @@ int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr)
     KASSERT(pid >= 0);
     KASSERT(paddr != 0);
     KASSERT(vaddr != 0);
- 
 
     frame_index = paddr / PAGE_SIZE;
     KASSERT(frame_index < nRamFrames);
@@ -261,8 +260,8 @@ void setLoading(int set, int entry)
         ipt[entry].vaddr |= LOAD_MASK;
     }
     else
-    {   
-       
+    {
+
         ipt[entry].vaddr &= ~LOAD_MASK;
     }
     spinlock_release(&ipt_lock);
@@ -287,7 +286,6 @@ void print_ipt(void)
     KASSERT(ipt_active);
 
     kprintf("<< IPT >>\n");
-
 
     for (i = 0; i < nRamFrames; i++)
     {
@@ -348,10 +346,9 @@ int create_ipt(void)
     int i;
     nRamFrames = ((int)ram_getsize()) / PAGE_SIZE;
     KASSERT(nRamFrames != 0);
-    ipt_hash = STinit(nRamFrames);
+    ipt_hash = STinit(577);
 
     ipt = kmalloc(sizeof(struct ipt_entry) * nRamFrames);
-
 
     if (ipt == NULL || ipt_hash == NULL)
     {
@@ -380,15 +377,17 @@ paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr)
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
 
-    index = STsearch(ipt_hash, pid,vaddr);
+    index = STsearch(ipt_hash, pid, vaddr);
 
-    if (index==-1){
-        paddr = 0; 
+    if (index == -1)
+    {
+        paddr = 0;
     }
-    else{
-        paddr = index*PAGE_SIZE;
+    else
+    {
+        paddr = index * PAGE_SIZE;
     }
-    
+
     spinlock_release(&ipt_lock);
 
     /* return 0 in case the frame is not in memory */
@@ -406,21 +405,21 @@ int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr)
     KASSERT(pid >= 0);
     KASSERT(paddr != 0);
     KASSERT(vaddr != 0);
- 
+
     frame_index = paddr / PAGE_SIZE;
     KASSERT(frame_index < nRamFrames);
-    item = ITEMscan(pid, (vaddr & ~LOAD_MASK), frame_index);
 
     spinlock_acquire(&ipt_lock);
     if (ipt_active)
     {
+        item = ITEMscan(pid, (vaddr & ~LOAD_MASK), frame_index);
         KASSERT(ipt_active);
         ipt[frame_index].pid = pid;
         ipt[frame_index].vaddr = vaddr;
 
         /*Add entry to hash table*/
         STinsert(ipt_hash, item);
-
+        // STdisplay(ipt_hash);
     }
     spinlock_release(&ipt_lock);
 
@@ -431,10 +430,11 @@ int ipt_kadd(pid_t pid, paddr_t paddr, vaddr_t vaddr)
 {
     int frame_index;
     KASSERT(pid == -1);
-    Item item=NULL;
+    Item item = NULL;
     frame_index = paddr / PAGE_SIZE;
     KASSERT(frame_index < nRamFrames);
-    if(ipt_hash != NULL){
+    if (ipt_hash != NULL)
+    {
         item = ITEMscan(pid, (vaddr & ~LOAD_MASK), frame_index);
     }
 
@@ -446,8 +446,9 @@ int ipt_kadd(pid_t pid, paddr_t paddr, vaddr_t vaddr)
         ipt[frame_index].pid = pid;
         ipt[frame_index].vaddr = vaddr;
 
-        if(ipt_hash != NULL){
-            STinsert(ipt_hash,item);
+        if (ipt_hash != NULL)
+        {
+            STinsert(ipt_hash, item);
         }
 
         /*Add entry for the kernel to hash table*/
@@ -468,7 +469,6 @@ void free_ipt_process(pid_t pid)
     int i, result;
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
-    STdisplay(ipt_hash);
 
     for (i = 0; i < nRamFrames; i++)
     {
@@ -488,10 +488,12 @@ void free_ipt_process(pid_t pid)
 
 int hash_delete(pid_t pid, vaddr_t vaddr)
 {
-
-     KASSERT(pid > 0);
+    spinlock_acquire(&ipt_lock);
+    KASSERT(pid > 0);
     KASSERT(vaddr < 0x80000000);
     STdelete(ipt_hash, pid, vaddr);
+    spinlock_release(&ipt_lock);
+
     return 0;
 }
 

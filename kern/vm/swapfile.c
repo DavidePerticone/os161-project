@@ -32,7 +32,7 @@ static struct spinlock swap_lock = SPINLOCK_INITIALIZER;
 void init_swapfile(void)
 {
     int i, result;
-    result = vfs_open((char *)"./swapfile", O_RDWR | O_CREAT | O_TRUNC, 777, &v);
+    result = vfs_open((char *)"./SWAPFILE", O_RDWR | O_CREAT | O_TRUNC, 777, &v);
     KASSERT(result != -1);
     spinlock_acquire(&swap_lock);
     for (i = 0; i < ENTRIES; i++)

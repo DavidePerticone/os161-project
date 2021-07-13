@@ -149,7 +149,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	{
 	case VM_FAULT_READONLY:
 		/* We always create pages read-write, so we can't get this */
-		/* TODO: terminate the process instead of panicking */
+		/* terminate the process instead of panicking */
 		kprintf("VM_FAULT_READONLY: process exited\n");
 		sys__exit(-1);
 

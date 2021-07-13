@@ -46,7 +46,7 @@ void sys__exit(int status)
 
   /* thread exits. proc data structure will be lost */
   free_ipt_process(pid);
-  /* TODO: free swap_table entries when process exits */
+  /* free swap_table entries when process exits */
   free_swap_table(pid);
 #if PRINT_TABLES
   print_ipt();

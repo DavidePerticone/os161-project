@@ -47,7 +47,7 @@ main(void)
 
 	printf("\nEntering the faulter program - I should die immediately\n");
 	i = *(int *)REALLY_BIG_ADDRESS;
-	
+
 	// gcc 4.8 improperly demands this
 	(void)i;
 

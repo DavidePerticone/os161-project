@@ -197,6 +197,10 @@ void syscall(struct trapframe *tf)
 
 	default:
 		kprintf("Unknown syscall %d\n", callno);
+		if(callno == 3){
+			kprintf("Unknown syscall %d\n", callno);
+
+		}
 		err = ENOSYS;
 		break;
 	}

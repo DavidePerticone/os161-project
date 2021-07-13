@@ -211,7 +211,9 @@ int load_elf(struct vnode *v, vaddr_t *entrypoint)
 	}
 
 	/* save eh in proc struct */
+	#if OPT_VIRTUALMEM
 	curproc->p_eh = eh;
+	#endif
 
 	/*
 	 * Go through the list of segments and set up the address space.

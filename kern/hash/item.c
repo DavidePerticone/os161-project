@@ -3,21 +3,26 @@
 #include "item.h"
 #include "st.h"
 
+
 struct item {
   Key key;
   int index;
 };
 
 
+static Item tmp=NULL;
+
+void item_init(void){
+  tmp = kmalloc (sizeof(struct item));
+}
+
+
 Item ITEMscan (pid_t pid, vaddr_t addr, int index) {
-  Item tmp = (Item) kmalloc(sizeof(struct item));
-  if (tmp == NULL) {
-    return ITEMsetvoid();
-  } else {
+
     tmp->key.kaddr = addr;
     tmp->key.kpid = pid;
     tmp->index = index;
-  }
+  
 
   return tmp;
 }
@@ -45,7 +50,12 @@ Item ITEMsetvoid(void) {
   return tmp;
 }
 
+Item ITEMsetnull(void) {  
+  return NULL;
+}
+
 int  KEYcompare(Key k1, Key k2) {
+  
     if (k1.kaddr == k2.kaddr && k1.kpid == k2.kpid){
         return 0;
     }

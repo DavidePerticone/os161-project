@@ -14,10 +14,13 @@ int hashU(Key v, int M);
 Item searchST(link t, Key k, link z);
 void visitR(link h, link z);
 link deleteR(link x, Key k);
+static link link_list;
+static int free_link;
+static int n_entries;
 
 struct STnode
 {
-    Item item;
+    struct item item;
     link next;
 };
 
@@ -29,10 +32,26 @@ struct symboltable
 };
 
 link NEW(Item item, link next)
-{
-    link x = kmalloc(sizeof *x);
+{   
+   
+    int j=0;
+    while(link_list[free_link].item.index != -1){
+        free_link++;
+        j++;
+        if(free_link >= n_entries){
+            free_link=0;
+        }
+        if(j >= n_entries){
+            panic("No free entry in hash table\n");
+        }
+
+    }
+    link x = &link_list[free_link];
     KASSERT(x != NULL);
-    x->item = item;
+    
+    x->item.index = item->index;
+    x->item.key.kaddr = item->key.kaddr;
+    x->item.key.kpid = item->key.kpid;
     x->next = next;
     return x;
 }
@@ -42,7 +61,13 @@ ST STinit(int maxN)
     int i;
     ST st = kmalloc(sizeof *st);
     KASSERT(st != NULL);
-
+    link_list=kmalloc(sizeof(struct STnode)*maxN);
+    item_init();
+    for(i=0; i<maxN; i++){
+        link_list[i].item.index=-1;
+    }
+    free_link=0;
+    n_entries=maxN;
     st->M = maxN;
     st->heads = kmalloc(st->M * sizeof(link));
     KASSERT(st->heads != NULL);
@@ -65,8 +90,6 @@ void STinsert(ST st, Item item)
 {
     int i;
     i = hashU(KEYget(item), st->M);
-    kprintf(" hash index = %d\n", i);
-
     st->heads[i] = NEW(item, st->heads[i]);
 
     return;
@@ -74,11 +97,17 @@ void STinsert(ST st, Item item)
 
 Item searchST(link t, Key k, link z)
 {
-    if (t == z)
-        return ITEMsetvoid();
+    int comparison;
 
-    if ((KEYcompare(KEYget(t->item), k)) == 0)
-        return t->item;
+    if (t == z)
+        return ITEMsetnull();
+
+     Key KEY = KEYget(&(t->item));
+
+    comparison=(KEYcompare(KEY, k));
+
+    if ( comparison == 0)
+        return &t->item;
 
     return (searchST(t->next, k, z));
 }
@@ -88,8 +117,11 @@ int STsearch(ST st, pid_t pid, vaddr_t addr)
     Key k;
     k.kaddr = addr;
     k.kpid = pid;
-    Item res = searchST(st->heads[hashU(k, st->M)], k, st->z);
-    return res->index;
+    int index;
+
+    index = hashU(k, st->M);
+    Item res = searchST(st->heads[index], k, st->z);
+    return res != NULL ? res->index : -1;
 }
 
 link deleteR(link x, Key k)
@@ -97,10 +129,10 @@ link deleteR(link x, Key k)
     if (x == NULL)
         return NULL;
 
-    if ((KEYcompare(KEYget(x->item), k)) == 0)
+    if ((KEYcompare(KEYget(&(x->item)), k)) == 0)
     {
         link t = x->next;
-        kfree(x);
+        x->item.index=-1;
         return t;
     }
 
@@ -136,10 +168,11 @@ void STdisplay(ST st)
 
     for (i = 0; i < st->M; i++)
     {
-        kprintf("st->heads[%d]: %d", i, st->heads[i]->item->key.kaddr);
+        kprintf("st->heads[%d]: %d", i, st->heads[i]->item.key.kaddr);
         visitR(st->heads[i], st->z);
         kprintf("\n");
     }
 
     return;
 }
+

@@ -14,6 +14,9 @@ int hashU(Key v, int M);
 Item searchST(link t, Key k, link z);
 void visitR(link h, link z);
 link deleteR(link x, Key k);
+static link link_list;
+static int free_link;
+static int n_entries;
 
 struct STnode
 {
@@ -29,8 +32,21 @@ struct symboltable
 };
 
 link NEW(Item item, link next)
-{
-    link x = kmalloc(sizeof *x);
+{   
+    int i=0;
+    int j=0;
+    while(link_list[i].item != NULL){
+        i++;
+        j++;
+        if(i >= n_entries){
+            i=0;
+        }
+        if(j >= n_entries){
+            panic("No free entry in hash table\n");
+        }
+
+    }
+    link x = &link_list[i];
     KASSERT(x != NULL);
     x->item = item;
     x->next = next;
@@ -42,7 +58,13 @@ ST STinit(int maxN)
     int i;
     ST st = kmalloc(sizeof *st);
     KASSERT(st != NULL);
-
+    link_list=kmalloc(sizeof(struct STnode)*maxN);
+    item_init();
+    for(i=0; i<maxN; i++){
+        link_list[i].item=NULL;
+    }
+    free_link=0;
+    n_entries=maxN;
     st->M = maxN;
     st->heads = kmalloc(st->M * sizeof(link));
     KASSERT(st->heads != NULL);
@@ -66,7 +88,6 @@ void STinsert(ST st, Item item)
     int i;
     i = hashU(KEYget(item), st->M);
     kprintf(" hash index = %d\n", i);
-
     st->heads[i] = NEW(item, st->heads[i]);
 
     return;
@@ -74,6 +95,9 @@ void STinsert(ST st, Item item)
 
 Item searchST(link t, Key k, link z)
 {
+
+        kprintf("searching hash\n");
+
     if (t == z)
         return ITEMsetnull();
 
@@ -89,10 +113,7 @@ int STsearch(ST st, pid_t pid, vaddr_t addr)
     k.kaddr = addr;
     k.kpid = pid;
     Item res = searchST(st->heads[hashU(k, st->M)], k, st->z);
-    if( res == NULL ){
-        return -1;
-    }
-    return res->index;
+    return res != NULL ? res->index : -1;
 }
 
 link deleteR(link x, Key k)
@@ -103,7 +124,7 @@ link deleteR(link x, Key k)
     if ((KEYcompare(KEYget(x->item), k)) == 0)
     {
         link t = x->next;
-        kfree(x);
+        x->item=NULL;
         return t;
     }
 

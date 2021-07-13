@@ -1,10 +1,10 @@
-# Makefile for palin
+# Makefile for matmult
 
 TOP=../../..
 .include "$(TOP)/mk/os161.config.mk"
 
-PROG=prime
-SRCS=prime.c
+PROG=matmult
+SRCS=matmult_swaptest.c
 BINDIR=/testbin
 
 

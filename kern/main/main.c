@@ -139,7 +139,9 @@ boot(void)
 	kheap_nextgeneration();
 
 	/* init swapfile */
+	#if OPT_SWAPFILE
 	init_swapfile();
+	#endif
 
 
 	/*
@@ -158,7 +160,9 @@ shutdown(void)
 {
 
 	kprintf("Shutting down.\n");
+	#if OPT_VIRTUALMEM
 	vm_shutdown();
+	#endif
 	vfs_clearbootfs();
 	vfs_clearcurdir();
 	vfs_unmountall();
