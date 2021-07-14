@@ -8,10 +8,10 @@ main.o: ../../main/main.c ../../include/types.h \
  ../../include/hangman.h opt-hangman.h includelinks/machine/spinlock.h \
  ../../include/threadlist.h includelinks/machine/thread.h \
  ../../include/setjmp.h includelinks/kern/machine/setjmp.h \
- ../../include/proc.h opt-paging.h opt-paging.h ../../include/elf.h \
+ ../../include/proc.h opt-paging.h ../../include/elf.h \
  includelinks/machine/elf.h ../../include/limits.h \
- ../../include/kern/limits.h ../../include/syscall.h opt-paging.h \
- opt-waitpid.h ../../include/synch.h opt-synch.h ../../include/current.h \
+ ../../include/kern/limits.h ../../include/syscall.h opt-waitpid.h \
+ ../../include/synch.h ../../include/current.h \
  includelinks/machine/current.h ../../include/vm.h \
  includelinks/machine/vm.h ../../include/mainbus.h ../../include/vfs.h \
  ../../include/device.h ../../include/test.h ../../include/version.h \

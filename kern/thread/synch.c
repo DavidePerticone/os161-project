@@ -40,7 +40,6 @@
 #include <current.h>
 #include <synch.h>
 #include <opt-waitpid.h>
-#include <opt-synch.h>
 
 ////////////////////////////////////////////////////////////
 //

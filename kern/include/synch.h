@@ -41,7 +41,6 @@
 /* ------------------------------------------------------------- */
 /* G.Cabodi - 2019 - implementing locks and CVs */
 /* option "synch" needed in conf.kern (and enabled!) */
-#include "opt-synch.h" 
 /* 1: implement lock as a binary semaphore (+ pointer to thread) 
  * 0: lock implemented by wait channel
  */

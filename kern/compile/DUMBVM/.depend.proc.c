@@ -3,10 +3,9 @@ proc.o: ../../proc/proc.c ../../include/types.h \
  includelinks/machine/types.h ../../include/spl.h ../../include/cdefs.h \
  ../../include/proc.h ../../include/spinlock.h ../../include/hangman.h \
  opt-hangman.h includelinks/machine/spinlock.h opt-paging.h \
- opt-paging.h ../../include/elf.h includelinks/machine/elf.h \
- ../../include/limits.h ../../include/kern/limits.h \
- ../../include/syscall.h opt-paging.h opt-waitpid.h \
- ../../include/synch.h opt-synch.h ../../include/current.h \
+ ../../include/elf.h includelinks/machine/elf.h ../../include/limits.h \
+ ../../include/kern/limits.h ../../include/syscall.h opt-waitpid.h \
+ ../../include/synch.h ../../include/current.h \
  includelinks/machine/current.h ../../include/thread.h \
  ../../include/array.h ../../include/lib.h opt-noasserts.h \
  ../../include/threadlist.h includelinks/machine/thread.h \
