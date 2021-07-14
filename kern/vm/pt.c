@@ -15,7 +15,7 @@
 #include <coremap.h>
 #include <st.h>
 #include <item.h>
-#include <opt-hash.h>
+#include <opt-paging.h>
 
 /* inverted page table */
 static struct ipt_entry *ipt;
@@ -26,11 +26,11 @@ static struct spinlock ipt_lock = SPINLOCK_INITIALIZER;
 static int ipt_active = 0;
 static int first_paddr;
 
-#if OPT_HASH
+#if OPT_PAGING
 static ST ipt_hash = NULL;
 #endif
 
-#if !OPT_HASH
+#if !OPT_PAGING
 void setLoading(int set, int entry)
 {
 

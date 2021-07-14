@@ -35,7 +35,7 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-#include "opt-paging.h"
+#include <opt-paging.h>
 #include <opt-waitpid.h>
 #include <synch.h>
 

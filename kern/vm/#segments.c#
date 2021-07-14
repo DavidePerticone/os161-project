@@ -7,7 +7,11 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <elf.h>
+<<<<<<< HEAD
 #include "opt-paging.h"
+=======
+#include <opt-paging.h>
+>>>>>>> a222b36bf0dbfb11a749132bb6496129455c0bba
 #include <kern/fcntl.h>
 #include <segments.h>
 #include <vfs.h>
