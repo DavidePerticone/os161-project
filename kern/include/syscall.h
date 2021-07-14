@@ -33,8 +33,8 @@
 
 #include <cdefs.h> /* for __DEAD */
 #include <types.h>
-#include "opt-syscalls.h"
-#include <opt-swapfile.h>
+#include "opt-paging.h"
+#include <opt-paging.h>
 #include <opt-waitpid.h>
 #include <synch.h> 
 struct trapframe; /* from <machine/trapframe.h> */
@@ -64,8 +64,8 @@ __DEAD void enter_new_process(int argc, userptr_t argv, userptr_t env,
 int sys_reboot(int code);
 int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 
-#if OPT_SYSCALLS
-#if OPT_SWAPFILE
+#if OPT_PAGING
+#if OPT_PAGING
 
 struct openfile;
 void openfileIncrRefCount(struct openfile *of);

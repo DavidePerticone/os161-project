@@ -37,8 +37,8 @@
  */
 
 #include <spinlock.h>
-#include <opt-virtualmem.h>
-#include <opt-swapfile.h>
+#include <opt-paging.h>
+#include <opt-paging.h>
 #include <elf.h>
 #include <limits.h>
 #include <syscall.h>
@@ -83,11 +83,11 @@ struct proc
 	struct lock *p_wlock;
 #endif
 
-#if OPT_VIRTUALMEM
+#if OPT_PAGING
 	Elf_Ehdr p_eh;
 #endif
 
-#if OPT_SWAPFILE
+#if OPT_PAGING
 	struct openfile *fileTable[OPEN_MAX];
 #endif
 };

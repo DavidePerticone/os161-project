@@ -18,7 +18,7 @@
 #include <vm_tlb.h>
 #include <st.h>
 #include <item.h>
-#include <opt-hash.h>
+#include <opt-paging.h>
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static struct spinlock freemem_lock = SPINLOCK_INITIALIZER;
@@ -153,7 +153,7 @@ getppages(unsigned long npages)
         victim_segment = address_segment(vaddr, as_victim);
         /* swap page out */
         result = swap_out(paddr, vaddr, victim_segment);
-        #if OPT_HASH
+        #if OPT_PAGING
         hash_delete(pid_victim, vaddr);
         #endif
         if (result)

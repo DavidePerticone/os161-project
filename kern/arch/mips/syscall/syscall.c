@@ -35,8 +35,8 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-#include <opt-swapfile.h>
-#include <opt-syscalls.h>
+#include <opt-paging.h>
+#include <opt-paging.h>
 #include <opt-waitpid.h>
 #include <synch.h>
 
@@ -137,7 +137,7 @@ void syscall(struct trapframe *tf)
 #endif
 
 
-#if OPT_SYSCALLS
+#if OPT_PAGING
 	case SYS_open:
 		retval = sys_open((userptr_t)tf->tf_a0,
 						  (int)tf->tf_a1,

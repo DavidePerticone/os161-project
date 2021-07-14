@@ -50,8 +50,8 @@
 #include <test.h>
 #include <version.h>
 #include "autoconf.h"  // for pseudoconfig
-#include "opt-virtualmem.h"
-#include "opt-swapfile.h"
+#include "opt-paging.h"
+#include "opt-paging.h"
 #include "swapfile.h"
 #include <addrspace.h>
 
@@ -139,7 +139,7 @@ boot(void)
 	kheap_nextgeneration();
 
 	/* init swapfile */
-	#if OPT_SWAPFILE
+	#if OPT_PAGING
 	init_swapfile();
 	#endif
 
@@ -160,7 +160,7 @@ shutdown(void)
 {
 
 	kprintf("Shutting down.\n");
-	#if OPT_VIRTUALMEM
+	#if OPT_PAGING
 	vm_shutdown();
 	#endif
 	vfs_clearbootfs();

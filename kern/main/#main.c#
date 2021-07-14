@@ -50,7 +50,7 @@
 #include <test.h>
 #include <version.h>
 #include "autoconf.h"  // for pseudoconfig
-#include "opt-virtualmem.h"
+#include "opt-paging.h"
 
 
 /*
@@ -108,7 +108,7 @@ boot(void)
 
 	/* Early initialization. */
 	ram_bootstrap();
-	#if OPT_VIRTUALMEM
+	#if OPT_PAGING
 	vm_bootstrap();
 	#endif
 	proc_bootstrap();

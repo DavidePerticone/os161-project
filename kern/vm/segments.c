@@ -7,7 +7,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <elf.h>
-#include <opt-virtualmem.h>
+#include <opt-paging.h>
 #include <kern/fcntl.h>
 #include <segments.h>
 #include <vfs.h>
