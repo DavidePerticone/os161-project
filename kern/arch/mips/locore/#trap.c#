@@ -39,7 +39,7 @@
 #include <vm.h>
 #include <mainbus.h>
 #include <syscall.h>
-#include <opt-tlb.h>
+#include "opt-paging.h"
 #include <kern/errno.h>
 
 

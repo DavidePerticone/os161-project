@@ -24,6 +24,7 @@ static int last_victim;
 static int victim;
 static struct spinlock ipt_lock = SPINLOCK_INITIALIZER;
 static int ipt_active = 0;
+static int first_paddr;
 
 #if OPT_HASH
 static ST ipt_hash = NULL;
@@ -294,15 +295,17 @@ void print_ipt(void)
     spinlock_release(&ipt_lock);
 }
 
-int init_victim(void)
+int init_victim(int first_avail_paddress)
 {
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
     last_victim = -1;
+    first_paddr = first_avail_paddress;
     spinlock_release(&ipt_lock);
 
     return victim;
 }
+
 /* return the selected victim */
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
 {
@@ -318,7 +321,7 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
          *This guarantees that pages allocated to kernel are not touched and implements a 
          *round robin policy.
          */
-        if (ipt[i].pid != -1 && i > last_victim)
+        if (ipt[i].pid != -2 && i > last_victim && first_paddr <= i * PAGE_SIZE)
         {
             /* update last victim: if last frame is selected, start again from the beginning */
             last_victim = i == nRamFrames - 1 ? 0 : i;
@@ -429,29 +432,16 @@ int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr)
 int ipt_kadd(pid_t pid, paddr_t paddr, vaddr_t vaddr)
 {
     int frame_index;
-    KASSERT(pid == -1);
-    Item item = NULL;
+    KASSERT(pid == -2 || pid == -1);
     frame_index = paddr / PAGE_SIZE;
     KASSERT(frame_index < nRamFrames);
-    if (ipt_hash != NULL)
-    {
-        item = ITEMscan(pid, (vaddr & ~LOAD_MASK), frame_index);
-    }
+
 
     spinlock_acquire(&ipt_lock);
     if (ipt_active)
     {
-        KASSERT(ipt_active);
-
         ipt[frame_index].pid = pid;
         ipt[frame_index].vaddr = vaddr;
-
-        if (ipt_hash != NULL)
-        {
-            STinsert(ipt_hash, item);
-        }
-
-        /*Add entry for the kernel to hash table*/
     }
     spinlock_release(&ipt_lock);
 

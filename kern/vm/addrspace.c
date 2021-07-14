@@ -93,7 +93,7 @@ void vm_bootstrap(void)
   /*allocation and deallocation of all ram to avoid using ram_stealmem*/
   firstpaddr = ram_getfirstfreeafterbootstrap(); /* get address of first free page */
   occupiedpages = ((int)firstpaddr) / PAGE_SIZE; /* calculate occupied pages by kernel */
-  init_victim();                                 /* set first victim to the first available page (not used by kernel) */
+  init_victim(firstpaddr);                                 /* set first victim to the first available page (not used by kernel) */
   freepages = nRamFrames - occupiedpages;        /* calculate free pages remaining*/
   addr = alloc_kpages(freepages);                /*allocate all pages available*/
   free_kpages(addr);                             /* deallocate all pages previously allocated */
@@ -117,25 +117,34 @@ static void vm_can_sleep(void)
 vaddr_t alloc_kpages(unsigned npages)
 {
   paddr_t pa;
+  unsigned i;
 
   vm_can_sleep();
-  pa = getppages(npages);
+  pa = getppages(npages, 1);
   if (pa == 0)
   {
     return 0;
   }
-  ipt_kadd(-1, 0, 0);
+  for(i=0; i<npages; i++){
+      ipt_kadd(-2, pa+i*PAGE_SIZE, 0);
+  }
   return PADDR_TO_KVADDR(pa);
 }
 
 void free_kpages(vaddr_t addr)
 {
+  int i, npages;
+
   if (isTableActive())
   {
     paddr_t paddr = addr - MIPS_KSEG0;
     long first = paddr / PAGE_SIZE;
     KASSERT(nRamFrames > first);
-    freeppages(paddr, first);
+    npages=freeppages(paddr, first);
+    for(i=0; i<npages; i++){
+      ipt_kadd(-1, paddr+i*PAGE_SIZE, 0);
+  }
+    
   }
 }
 
@@ -273,7 +282,7 @@ int as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 
 int as_prepare_load(unsigned npages)
 {
-  return getppages(npages);
+  return getppages(npages, 0);
 }
 
 int as_complete_load(struct addrspace *as)
@@ -294,6 +303,7 @@ void vm_shutdown(void){
 
  
 		print_statistics();
+    print_freeRamFrames();
 	
 
 

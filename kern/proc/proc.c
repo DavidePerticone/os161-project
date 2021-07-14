@@ -50,7 +50,7 @@
 #include <vnode.h>
 #include <opt-waitpid.h>
 #include <synch.h>
-#include <opt-swapfile.h> 
+#include "opt-paging.h" 
 
 #if OPT_WAITPID
 
@@ -140,7 +140,7 @@ proc_init_waitpid(struct proc *proc, const char *name)
 #endif
 }
 
-#if OPT_SWAPFILE
+#if OPT_PAGING
 
 struct addrspace *pid_getas(pid_t pid)
 {
@@ -181,7 +181,7 @@ proc_create(const char *name)
 
 	proc_init_waitpid(proc, name);
 
-#if OPT_SWAPFILE
+#if OPT_PAGING
 	bzero(proc->fileTable, OPEN_MAX * sizeof(struct openfile *));
 #endif
 	return proc;

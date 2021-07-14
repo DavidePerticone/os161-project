@@ -58,10 +58,10 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <elf.h>
-#include <opt-virtualmem.h>
+#include "opt-paging.h"
 #include <kern/fcntl.h>
 
-#if !OPT_VIRTUALMEM
+#if !OPT_PAGING
 /*
  * Load a segment at virtual address VADDR. The segment in memory
  * extends from VADDR up to (but not including) VADDR+MEMSIZE. The
@@ -211,7 +211,7 @@ int load_elf(struct vnode *v, vaddr_t *entrypoint)
 	}
 
 	/* save eh in proc struct */
-	#if OPT_VIRTUALMEM
+	#if OPT_PAGING
 	curproc->p_eh = eh;
 	#endif
 
@@ -275,7 +275,7 @@ int load_elf(struct vnode *v, vaddr_t *entrypoint)
 		}
 	}
 
-#if !OPT_VIRTUALMEM
+#if !OPT_PAGING
 
 	result = as_prepare_load(as);
 	if (result)

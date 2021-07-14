@@ -11,9 +11,9 @@
 #include <syscall.h>
 #include <current.h>
 #include <lib.h>
-#include <opt-swapfile.h>
+#include "opt-paging.h"
 
-#if OPT_SWAPFILE
+#if OPT_PAGING
 
 #include <copyinout.h>
 #include <vnode.h>
@@ -344,7 +344,7 @@ int sys_write(int fd, userptr_t buf_ptr, size_t size)
 
   if (fd != STDOUT_FILENO && fd != STDERR_FILENO)
   {
-#if OPT_SWAPFILE
+#if OPT_PAGING
     return file_write(fd, buf_ptr, size);
 #else
     kprintf("sys_write supported only to stdout\n");
@@ -367,7 +367,7 @@ int sys_read(int fd, userptr_t buf_ptr, size_t size)
 
   if (fd != STDIN_FILENO)
   {
-#if OPT_SWAPFILE
+#if OPT_PAGING
     return file_read(fd, buf_ptr, size);
 #else
     kprintf("sys_read supported only to stdin\n");

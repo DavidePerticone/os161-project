@@ -28,14 +28,9 @@ device random0 at lrandom*	# Abstract randomness device
 #options net			# Network stack (not supported)
 options semfs			# Semaphores for userland
 
-options sfs			# Always use the file system
+options sfs			    # Always use the file system
 #options netfs			# You might write this as a project.
 
-options tlb             # Enable tlb replacement
-options paging          # Enable on-demand paging
-options virtualmem      # Enable new vm system and enables statistics printing
+options paging
 options waitpid         # Adds pid to proc structure
-options syscalls	    # Enable rea dand write sys calls
-options swapfile        # Enable swapping pages out on a file
-options hash		    # Add hash table/function
 options synch           #enables locks and cvs

@@ -442,42 +442,24 @@ file		test/kmalloctest.c
 file		test/fstest.c
 optfile net	test/nettest.c
 
+########################################
+#                                      #
+#               PAGING                 #
+#                                      #
+########################################
 
-########################################
-#                                      #
-#                TLB                   #
-#                                      #
-########################################
-defoption tlb
-optfile tlb	vm/vm_tlb.c 		
-
-########################################
-#                                      #
-#           PAGING SYSTEM              #
-#                                      #
-########################################
 defoption paging
-optfile paging	vm/pt.c 	
-
-########################################
-#                                      #
-#           VM SYSTEM                  #
-#                                      #
-########################################
-defoption virtualmem
-optfile virtualmem   vm/addrspace.c
-optfile virtualmem vm/segments.c
-optfile virtualmem vm/coremap.c
-optfile virtualmem vm/instrumentation.c
-
-########################################
-#                                      #
-#           SWAPFILE                   #
-#                                      #
-########################################
-defoption swapfile
-optfile swapfile   vm/swapfile.c
-
+optfile paging	vm/vm_tlb.c 
+optfile paging  vm/pt.c 
+optfile paging  vm/addrspace.c
+optfile paging  vm/segments.c
+optfile paging  vm/coremap.c
+optfile paging  vm/instrumentation.c
+optfile paging  vm/swapfile.c
+optfile paging  hash/st.c
+optfile paging  hash/item.c
+optfile paging syscall/file_syscalls.c
+optfile paging syscall/proc_syscalls.c
 
 ########################################
 #                                      #
@@ -486,27 +468,10 @@ optfile swapfile   vm/swapfile.c
 ########################################
 defoption waitpid
 
-########################################
-#                                      #
-#              SYS CALLS	       #
-#                                      #
-########################################
-defoption syscalls
-optfile syscalls syscall/file_syscalls.c
-optfile syscalls syscall/proc_syscalls.c
 
 ########################################
 #                                      #
-#             HASH TABLE	            #
-#                                      #
-########################################
-defoption hash
-optfile hash hash/st.c
-optfile hash hash/item.c
-
-########################################
-#                                      #
-#             LOCKS	                    #
+#             LOCKS	                   #
 #                                      #
 ########################################
 defoption synch

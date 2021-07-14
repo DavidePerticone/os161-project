@@ -46,7 +46,7 @@ Item ITEMsetvoid(void) {
   KASSERT(tmp != NULL);
   tmp->key.kpid = -1;
   tmp->key.kaddr = -1;
-  tmp->index = -1;
+  tmp->index = -2;
   return tmp;
 }
 

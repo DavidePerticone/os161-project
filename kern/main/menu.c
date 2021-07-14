@@ -45,7 +45,7 @@
 #include <test.h>
 #include "opt-sfs.h"
 #include "opt-net.h"
-#include "opt-virtualmem.h"
+#include "opt-paging.h"
 #include "opt-waitpid.h"
 #include <instrumentation.h>
 /*

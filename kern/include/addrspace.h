@@ -36,7 +36,7 @@
 
 #include <vm.h>
 #include "opt-dumbvm.h"
-#include "opt-virtualmem.h"
+#include "opt-paging.h"
 #include <pt.h>
 
 #define DUMBVM_STACKPAGES 18
@@ -62,7 +62,7 @@ struct addrspace
         paddr_t as_stackpbase;
 #endif
 
-#if OPT_VIRTUALMEM
+#if OPT_PAGING
         vaddr_t as_vbase1;
         size_t as_npages1;
         vaddr_t as_vbase2;
@@ -122,7 +122,7 @@ int as_define_region(struct addrspace *as,
                      int readable,
                      int writeable,
                      int executable);
-#if OPT_VIRTUALMEM
+#if OPT_PAGING
 int as_prepare_load(unsigned npages);
 int isTableActive(void);
 #else

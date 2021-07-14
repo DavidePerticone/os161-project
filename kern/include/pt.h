@@ -23,7 +23,7 @@ vaddr_t vaddr;
 };
 void print_ipt(void);
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid);
-int init_victim(void);
+int init_victim(int first_avail_paddress);
 int isLoading(int entry);
 int create_ipt(void);
 void setLoading(int set, int entry);

@@ -37,7 +37,7 @@
 #include <synch.h>
 #include <vm.h> /* for PAGE_SIZE */
 #include <test.h>
-
+#include <coremap.h>
 #include "opt-dumbvm.h"
 
 ////////////////////////////////////////////////////////////
@@ -359,7 +359,7 @@ kmalloctest4(int nargs, char **args)
 	}
 
 	/* use 6 instead of 8 threads */
-	nthreads = (3*NTHREADS)/4;
+	nthreads =  (3*NTHREADS)/4;
 
 	for (i=0; i<nthreads; i++) {
 		result = thread_fork("kmalloctest4", NULL,
@@ -373,6 +373,7 @@ kmalloctest4(int nargs, char **args)
 	for (i=0; i<nthreads; i++) {
 		P(sem);
 	}
+
 
 	sem_destroy(sem);
 	kprintf("Multipage kmalloc test done\n");

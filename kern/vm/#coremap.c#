@@ -29,13 +29,11 @@ static unsigned long *allocSize = NULL;
 void print_freeRamFrames(void)
 {
     int i;
-          spinlock_acquire(&freemem_lock);
         kprintf("Frame Status\n");
 
     for(i=0; i<nRamFrames; i++){
         kprintf("  %d    %d\n", i, freeRamFrames[i]);
     }
-      spinlock_release(&freemem_lock);
   
 }
 
@@ -88,8 +86,30 @@ getfreeppages(unsigned long npages)
         return 0;
     spinlock_acquire(&freemem_lock);
 
-
     for (i = 0, first = found = -1; i < nRamFrames; i++)
+    {
+        if (freeRamFrames[i])
+        {
+            if (i == 0 || !freeRamFrames[i - 1])
+                first = i; /* set first free in an interval */
+            if (i - first + 1 >= np)
+            {
+                found = first;
+                break;
+            }
+        }
+    }
+
+    if (found >= 0)
+    {
+        if (addr != 0)
+            {
+                addr=0;
+            }
+        addr = (paddr_t)found * PAGE_SIZE;
+    }
+
+for (i = 0, first = found = -1; i < nRamFrames; i++)
     {
         if (freeRamFrames[i])
         {
@@ -158,15 +178,16 @@ getppages(unsigned long npages, int kmem)
 
     if (paddr == 0 && isTableActive())
     {
-       
+        int i;
+        kprintf("Frame Status\n");
+
+    for(i=0; i<nRamFrames; i++){
+        kprintf("  %d    %d\n", i, freeRamFrames[i]);
+    }
         /* we can only get one page at a time, otherwise in case of swap problems occur */
         if (!kmem)
         {
             KASSERT(npages == 1);
-        }
-        if (paddr == 0 && kmem)
-        {
-            panic("No contiguous %ld free ram frames for kernel allocation", npages);
         }
         /* get physical and virtual address of victmim */
         paddr = get_victim(&vaddr, &pid_victim);
@@ -212,5 +233,5 @@ int freeppages(paddr_t addr, long first_page)
 
     spinlock_release(&freemem_lock);
 
-    return (int)np;
+    return 1;
 }

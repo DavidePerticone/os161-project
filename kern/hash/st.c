@@ -118,7 +118,6 @@ int STsearch(ST st, pid_t pid, vaddr_t addr)
     k.kaddr = addr;
     k.kpid = pid;
     int index;
-
     index = hashU(k, st->M);
     Item res = searchST(st->heads[index], k, st->z);
     return res != NULL ? res->index : -1;
