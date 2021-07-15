@@ -32,5 +32,6 @@ options sfs			    # Always use the file system
 #options netfs			# You might write this as a project.
 
 options paging          # Enables paging VM
+options list           # Enables list usage in VM
 options waitpid         # Adds pid to proc structure
-options synch           #enables locks and cvs
+options synch           # enables locks and cvs

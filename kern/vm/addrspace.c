@@ -301,10 +301,6 @@ int as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 
 void vm_shutdown(void){
 
- 
 		print_statistics();
-    print_freeRamFrames();
 	
-
-
 }

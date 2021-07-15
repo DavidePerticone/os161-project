@@ -1,14 +1,17 @@
 #ifndef _SWAPFILE_H
 #define _SWAPFILE_H
 
-#include<types.h>
+#include <types.h>
+#include <opt-list.h>
 struct swap_entry
 {
 
     pid_t pid;
     vaddr_t page;
+    #if OPT_LIST
     off_t file_offset;
     struct swap_entry *next, *previous;
+    #endif
 
 };
 
