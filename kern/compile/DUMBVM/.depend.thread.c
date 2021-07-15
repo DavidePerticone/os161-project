@@ -8,10 +8,10 @@ thread.o: ../../thread/thread.c ../../include/types.h \
  ../../include/wchan.h ../../include/thread.h \
  includelinks/machine/thread.h ../../include/setjmp.h \
  includelinks/kern/machine/setjmp.h ../../include/threadprivate.h \
- ../../include/proc.h opt-paging.h ../../include/elf.h \
+ ../../include/proc.h opt-paging.h opt-paging.h ../../include/elf.h \
  includelinks/machine/elf.h ../../include/limits.h \
- ../../include/kern/limits.h ../../include/syscall.h opt-waitpid.h \
- ../../include/synch.h ../../include/current.h \
+ ../../include/kern/limits.h ../../include/syscall.h opt-paging.h \
+ opt-waitpid.h ../../include/synch.h opt-synch.h ../../include/current.h \
  includelinks/machine/current.h ../../include/addrspace.h \
  ../../include/vm.h opt-dumbvm.h ../../include/pt.h \
  ../../include/mainbus.h ../../include/vnode.h

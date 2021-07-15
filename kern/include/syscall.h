@@ -64,6 +64,7 @@ int sys_reboot(int code);
 int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 
 #if OPT_PAGING
+#if OPT_PAGING
 
 struct openfile;
 void openfileIncrRefCount(struct openfile *of);
@@ -72,14 +73,16 @@ int sys_close(int fd);
 int sys_lseek(int fd, off_t offset, int whence, int *retval);
 int file_seek(struct openfile *of, off_t offset, int whence, int *errcode);
 bool filedes_is_seekable(struct openfile *of);
+int sys_waitpid(pid_t pid, userptr_t statusp, int options);
+pid_t sys_getpid(void);
+#endif
 int sys_write(int fd, userptr_t buf_ptr, size_t size);
 int sys_read(int fd, userptr_t buf_ptr, size_t size);
 void sys__exit(int status);
 #endif
 
 #if OPT_WAITPID
-pid_t sys_getpid(void);
-int sys_waitpid(pid_t pid, userptr_t statusp, int options);
+
 
 #endif
 

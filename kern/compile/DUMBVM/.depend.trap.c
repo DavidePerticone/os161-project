@@ -11,5 +11,5 @@ trap.o: ../../arch/mips/locore/trap.c ../../include/types.h \
  ../../include/setjmp.h includelinks/kern/machine/setjmp.h \
  ../../include/current.h includelinks/machine/current.h \
  ../../include/vm.h ../../include/mainbus.h ../../include/syscall.h \
- opt-paging.h opt-waitpid.h ../../include/synch.h \
- ../../include/kern/errno.h
+ opt-paging.h opt-paging.h opt-waitpid.h ../../include/synch.h \
+ opt-synch.h opt-paging.h ../../include/kern/errno.h

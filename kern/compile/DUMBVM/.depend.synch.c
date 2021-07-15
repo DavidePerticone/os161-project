@@ -6,4 +6,5 @@ synch.o: ../../thread/synch.c ../../include/types.h \
  ../../include/thread.h ../../include/array.h ../../include/threadlist.h \
  includelinks/machine/thread.h ../../include/setjmp.h \
  includelinks/kern/machine/setjmp.h ../../include/current.h \
- includelinks/machine/current.h ../../include/synch.h opt-waitpid.h
+ includelinks/machine/current.h ../../include/synch.h opt-synch.h \
+ opt-waitpid.h
