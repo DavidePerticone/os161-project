@@ -233,6 +233,13 @@ struct symboltable
     link z;
 };
 
+static int concatenate(int a, unsigned b) { 
+    unsigned x = 10; 
+    while(b >= x) 
+        x *= 10; 
+    return a * x + b; 
+} 
+
 link NEW(Item item, link next)
 {   
    
@@ -283,7 +290,7 @@ ST STinit(int maxN)
 
 int hashU(Key v, int M)
 {
-    int sum = v.kaddr + v.kpid;
+    int sum = concatenate(v.kpid, v.kaddr);
     int h = sum % M;
     return h;
 }

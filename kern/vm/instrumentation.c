@@ -129,50 +129,52 @@ void increase(long int indicator)
 
 void print_statistics(void)
 {
+    int flag;
+
     kprintf("\n\nVirtual memory statistics:\n\n");
     kprintf("----------------------------------------\n");
-    kprintf("|TLB Faults: %ld                         |\n", tlb_misses);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|TLB Faults with Free: %ld               |\n", tlb_misses_free);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|TLB Faults with Replace: %ld            |\n", tlb_misses_full);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|TLB Invalidations: %ld                  |\n", tlb_invalidations);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|TLB Reloads: %ld                        |\n", tlb_reloads);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|Page Faults (Zeroed): %ld               |\n", new_pages_zeroed);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|Page Faults (Disk): %ld                 |\n", faults_with_load);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|Page Faults from ELF: %ld               |\n", faults_with_elf_load);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|Page Faults from Swapfile: %ld          |\n", swap_in_pages);
-        kprintf("----------------------------------------\n");
-
-    kprintf("|Swapfile Writes: %ld                    |\n", swap_out_pages);
+    kprintf("TLB Faults: %ld                         \n", tlb_misses);
+    kprintf("----------------------------------------\n");
+    kprintf("TLB Faults with Free: %ld               \n", tlb_misses_free);
+    kprintf("----------------------------------------\n");
+    kprintf("|TLB Faults with Replace: %ld            \n", tlb_misses_full);
+    kprintf("----------------------------------------\n");
+    kprintf("|TLB Invalidations: %ld                  \n", tlb_invalidations);
+    kprintf("----------------------------------------\n");
+    kprintf("TLB Reloads: %ld                        \n", tlb_reloads);
+    kprintf("----------------------------------------\n");
+    kprintf("Page Faults (Zeroed): %ld               \n", new_pages_zeroed);
+    kprintf("----------------------------------------\n");
+    kprintf("Page Faults (Disk): %ld                 \n", faults_with_load);
+    kprintf("----------------------------------------\n");
+    kprintf("Page Faults from ELF: %ld               \n", faults_with_elf_load);
+    kprintf("----------------------------------------\n");
+    kprintf("Page Faults from Swapfile: %ld          \n", swap_in_pages);
+    kprintf("----------------------------------------\n");
+    kprintf("Swapfile Writes: %ld                    \n", swap_out_pages);
     kprintf("----------------------------------------\n\n");
 
-    if(tlb_misses_free+tlb_misses_full != tlb_misses){
+    flag=1;
+
+    if (tlb_misses_free + tlb_misses_full != tlb_misses)
+    {
         kprintf("\nWarning: TLB Faults with Free + TLB Faults with Replace != TLB Faults\n");
+        flag=0;
     }
 
-    if(tlb_reloads+faults_with_load+new_pages_zeroed != tlb_misses){
+    if (tlb_reloads + faults_with_load + new_pages_zeroed != tlb_misses)
+    {
         kprintf("\nWarning: TLB Reloads + Page Faults (Disk) + Page Faults (Zeroed) != TLB Faults \n");
-
+        flag=0;
     }
 
-    if(faults_with_elf_load + swap_in_pages != faults_with_load){
+    if (faults_with_elf_load + swap_in_pages != faults_with_load)
+    {
         kprintf("\nWarning: Page Faults from ELF %ld + Swapfile Writes %ld != Page Faults (Disk) %ld\n", faults_with_elf_load, swap_out_pages, faults_with_load);
+        flag=0;
     }
 
-
+    if(flag){
+        kprintf("All sums are correct.\n\n");
+    }
 }
