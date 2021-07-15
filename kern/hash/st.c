@@ -6,9 +6,10 @@
 
 #if OPT_LIST
 
-struct item {
-  Key key;
-  int index;
+struct item
+{
+    Key key;
+    int index;
 };
 
 typedef struct STnode *link;
@@ -34,56 +35,55 @@ struct symboltable
     link z;
 };
 
-static void add_free_link(link flink){
-    flink->next=free_list_head->next;
-    free_list_head->next=flink;
+static void add_free_link(link flink)
+{
+    flink->next = free_list_head->next;
+    free_list_head->next = flink;
 }
 
-static void link_list_init(int maxN){
+static void link_list_init(int maxN)
+{
 
     int i;
-    link tmp
-    ;
-    free_list_head=kmalloc(sizeof(struct STnode));
-    free_list_tail=kmalloc(sizeof(struct STnode));
-    free_list_head->next=free_list_tail;
+    link tmp;
+    free_list_head = kmalloc(sizeof(struct STnode));
+    free_list_tail = kmalloc(sizeof(struct STnode));
+    free_list_head->next = free_list_tail;
 
-
-    for(i=0; i<maxN; i++){
-        tmp=kmalloc(sizeof(struct STnode));
-        tmp->item.index=-1;
+    for (i = 0; i < maxN; i++)
+    {
+        tmp = kmalloc(sizeof(struct STnode));
+        tmp->item.index = -1;
         add_free_link(tmp);
     }
-
-     
 }
 
-
-static link get_free_link(void){
+static link get_free_link(void)
+{
     link tmp;
 
-    tmp=free_list_head->next;
-    if(tmp == free_list_tail){
+    tmp = free_list_head->next;
+    if (tmp == free_list_tail)
+    {
         panic("no free link in ipt_hash");
     }
-    free_list_head->next=tmp->next;
+    free_list_head->next = tmp->next;
 
     return tmp;
 }
 
 link NEW(Item item, link next)
-{   
-   
+{
+
     link x = get_free_link();
     KASSERT(x != NULL);
-    
+
     x->item.index = item->index;
     x->item.key.kaddr = item->key.kaddr;
     x->item.key.kpid = item->key.kpid;
     x->next = next;
     return x;
 }
-
 
 ST STinit(int maxN)
 {
@@ -92,7 +92,7 @@ ST STinit(int maxN)
     KASSERT(st != NULL);
     link_list_init(maxN);
     item_init();
-    n_entries=maxN;
+    n_entries = maxN;
     st->M = maxN;
     st->heads = kmalloc(st->M * sizeof(link));
     KASSERT(st->heads != NULL);
@@ -127,11 +127,11 @@ Item searchST(link t, Key k, link z)
     if (t == z)
         return ITEMsetnull();
 
-     Key KEY = KEYget(&(t->item));
+    Key KEY = KEYget(&(t->item));
 
-    comparison=(KEYcompare(KEY, k));
+    comparison = (KEYcompare(KEY, k));
 
-    if ( comparison == 0)
+    if (comparison == 0)
         return &t->item;
 
     return (searchST(t->next, k, z));
@@ -156,7 +156,7 @@ link deleteR(link x, Key k)
     if ((KEYcompare(KEYget(&(x->item)), k)) == 0)
     {
         link t = x->next;
-        x->item.index=-1;
+        x->item.index = -1;
         add_free_link(x);
         return t;
     }
@@ -203,11 +203,10 @@ void STdisplay(ST st)
 
 #else
 
-
-
-struct item {
-  Key key;
-  int index;
+struct item
+{
+    Key key;
+    int index;
 };
 
 typedef struct STnode *link;
@@ -233,31 +232,26 @@ struct symboltable
     link z;
 };
 
-static int concatenate(int a, unsigned b) { 
-    unsigned x = 10; 
-    while(b >= x) 
-        x *= 10; 
-    return a * x + b; 
-} 
-
 link NEW(Item item, link next)
-{   
-   
-    int j=0;
-    while(link_list[free_link].item.index != -1){
+{
+
+    int j = 0;
+    while (link_list[free_link].item.index != -1)
+    {
         free_link++;
         j++;
-        if(free_link >= n_entries){
-            free_link=0;
+        if (free_link >= n_entries)
+        {
+            free_link = 0;
         }
-        if(j >= n_entries){
+        if (j >= n_entries)
+        {
             panic("No free entry in hash table\n");
         }
-
     }
     link x = &link_list[free_link];
     KASSERT(x != NULL);
-    
+
     x->item.index = item->index;
     x->item.key.kaddr = item->key.kaddr;
     x->item.key.kpid = item->key.kpid;
@@ -270,13 +264,14 @@ ST STinit(int maxN)
     int i;
     ST st = kmalloc(sizeof *st);
     KASSERT(st != NULL);
-    link_list=kmalloc(sizeof(struct STnode)*maxN);
+    link_list = kmalloc(sizeof(struct STnode) * maxN);
     item_init();
-    for(i=0; i<maxN; i++){
-        link_list[i].item.index=-1;
+    for (i = 0; i < maxN; i++)
+    {
+        link_list[i].item.index = -1;
     }
-    free_link=0;
-    n_entries=maxN;
+    free_link = 0;
+    n_entries = maxN;
     st->M = maxN;
     st->heads = kmalloc(st->M * sizeof(link));
     KASSERT(st->heads != NULL);
@@ -288,9 +283,23 @@ ST STinit(int maxN)
     return st;
 }
 
+/*static int concatenate(int a, unsigned b) { 
+    unsigned x = 10; 
+    while(b >= x) 
+        x *= 10; 
+    return a * x + b; 
+} */
+
 int hashU(Key v, int M)
 {
-    int sum = concatenate(v.kpid, v.kaddr);
+    unsigned x = 10;
+    unsigned sum;
+    while (v.kaddr >= x)
+        x *= 10;
+    sum = (unsigned)v.kpid * x + v.kaddr;
+
+    //int sum = v.kaddr + v.kpid;
+    // kprintf("SUm %d %d %d\n", sum,v.kpid, v.kaddr );
     int h = sum % M;
     return h;
 }
@@ -311,11 +320,11 @@ Item searchST(link t, Key k, link z)
     if (t == z)
         return ITEMsetnull();
 
-     Key KEY = KEYget(&(t->item));
+    Key KEY = KEYget(&(t->item));
 
-    comparison=(KEYcompare(KEY, k));
+    comparison = (KEYcompare(KEY, k));
 
-    if ( comparison == 0)
+    if (comparison == 0)
         return &t->item;
 
     return (searchST(t->next, k, z));
@@ -340,7 +349,7 @@ link deleteR(link x, Key k)
     if ((KEYcompare(KEYget(&(x->item)), k)) == 0)
     {
         link t = x->next;
-        x->item.index=-1;
+        x->item.index = -1;
         return t;
     }
 
@@ -383,8 +392,5 @@ void STdisplay(ST st)
 
     return;
 }
-
-
-
 
 #endif
