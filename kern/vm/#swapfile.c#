@@ -34,7 +34,7 @@ static void add_free_entry(struct swap_entry *fentry)
 }
 
 /* list functions for swap_list */
-/*
+
 static struct swap_entry *search_recursive(pid_t pid, vaddr_t vaddr, struct swap_entry *next)
 {
 
@@ -47,31 +47,16 @@ static struct swap_entry *search_recursive(pid_t pid, vaddr_t vaddr, struct swap
     {
         return next;
     }
+
     return search_recursive(pid, vaddr, next->next);
+
+
 }
-*/
+
 static struct swap_entry *search_swap_list(pid_t pid, vaddr_t vaddr)
 {
-    struct swap_entry *tmp;
 
-    tmp = swap_list->next;
-
-    for (int i = 0; i < ENTRIES; i++)
-    {
-        if (tmp == free_list_tail)
-        {
-            return NULL;
-        }
-
-        if (tmp->pid == pid && tmp->page == vaddr)
-        {
-            return tmp;
-        }
-
-        tmp = tmp->next;
-    }
-
-    panic("Should not get here while searching in swap list\n");
+    return search_recursive(pid, vaddr, swap_list->next);
 }
 
 static void add_swap_list(struct swap_entry *entry)
@@ -94,11 +79,14 @@ static void remove_swap_list(struct swap_entry *entry)
     next = entry->next;
     prev->next = next;
     next->previous = prev;
+    add_free_entry(entry);
 }
 
 /* end list functions for swap_list */
 
+
 /* list functions for free entries */
+
 
 static void entry_list_init(int maxN)
 {
@@ -106,14 +94,13 @@ static void entry_list_init(int maxN)
     int i;
     struct swap_entry *tmp;
 
+    swap_list = kmalloc(sizeof(struct swap_entry));
+    swap_list->next = free_list_tail;
+    swap_list->previous = NULL;
+
     free_list_head = kmalloc(sizeof(struct swap_entry));
     free_list_tail = kmalloc(sizeof(struct swap_entry));
     free_list_head->next = free_list_tail;
-
-    swap_list = kmalloc(sizeof(struct swap_entry));
-    swap_list->next = free_list_tail;
-    kprintf("TAIL: %p\n", free_list_tail);
-    swap_list->previous = NULL;
 
     for (i = 0; i < maxN; i++)
     {
@@ -149,7 +136,9 @@ void init_swapfile(void)
     int result;
     result = vfs_open((char *)"./SWAPFILE", O_RDWR | O_CREAT | O_TRUNC, 777, &v);
     KASSERT(result != -1);
+    spinlock_acquire(&swap_lock);
     entry_list_init(ENTRIES);
+    spinlock_release(&swap_lock);
 }
 
 static int
@@ -200,25 +189,18 @@ int swap_in(vaddr_t page)
 
     entry = search_swap_list(pid, page);
 
-    if (entry != NULL)
-    {
-        offset = entry->file_offset;
-        remove_swap_list(entry);
-        spinlock_release(&swap_lock);
-        result = file_read_paddr(v, page, PAGE_SIZE, offset);
-        KASSERT(result == PAGE_SIZE);
-
-        spinlock_acquire(&swap_lock);
-        add_free_entry(entry);
-        spinlock_release(&swap_lock);
-
-        increase(SWAP_IN_PAGE);
-        increase(FAULT_WITH_LOAD);
-        return 0;
+    if(entry != NULL){
+    offset=entry->file_offset;
+    remove_swap_list(entry);
+    result = file_read_paddr(v, page, PAGE_SIZE, offset);
+    spinlock_release(&swap_lock);
+    KASSERT(result == PAGE_SIZE);
+    increase(SWAP_IN_PAGE);
+    increase(FAULT_WITH_LOAD);
+    return 0;
     }
 
     spinlock_release(&swap_lock);
-
     return 1;
 }
 /*
@@ -289,14 +271,15 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
     entry = get_free_entry();
     entry->page = vaddr;
     entry->pid = pid;
+    
 
-    spinlock_release(&swap_lock);
+    
+
     result = file_write_paddr(v, paddr, PAGE_SIZE, entry->file_offset);
     if (result != PAGE_SIZE)
     {
         panic("Unable to swap page out");
     }
-    spinlock_acquire(&swap_lock);
     add_swap_list(entry);
     spinlock_release(&swap_lock);
     KASSERT(result >= 0);
@@ -304,7 +287,7 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
     return 0;
 }
 
-/*static void free_recursive(pid_t pid, struct swap_entry *next)
+static void free_recursive(pid_t pid, struct swap_entry *next)
 {
 
     struct swap_entry *tmp;
@@ -319,45 +302,20 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
     if (next->pid == pid)
     {
         remove_swap_list(next);
-        add_free_entry(next);
     }
 
     free_recursive(pid, tmp);
 }
-*/
+
 void free_swap_table(pid_t pid)
 {
-
-    struct swap_entry *tmp=swap_list->next, *next;
-
     spinlock_acquire(&swap_lock);
 
     KASSERT(pid >= 0);
 
-    for (int i = 0; i < ENTRIES; i++)
-    {
-        if (tmp == free_list_tail)
-        {
-            spinlock_release(&swap_lock);
-            return;
-        }
+    free_recursive(pid, swap_list);
 
-        next = tmp->next;
-
-        if (tmp->pid == pid)
-        {
-            remove_swap_list(tmp);
-            add_free_entry(tmp);
-        }
-
-        tmp=next;
-    }
-
-    panic("Should not get here while freeing swap list\n");
-
-    //  free_recursive(pid, swap_list);
-
-   
+    spinlock_release(&swap_lock);
 }
 
 static void print_recursive(struct swap_entry *next)

@@ -7,6 +7,8 @@ struct swap_entry
 
     pid_t pid;
     vaddr_t page;
+    off_t file_offset;
+    struct swap_entry *next, *previous;
 
 };
 
