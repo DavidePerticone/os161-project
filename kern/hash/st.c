@@ -14,8 +14,8 @@ int hashU(Key v, int M);
 Item searchST(link t, Key k, link z);
 void visitR(link h, link z);
 link deleteR(link x, Key k);
-static link link_list;
-static int free_link;
+static link free_list_head;
+static link free_list_tail;
 static int n_entries;
 
 struct STnode
@@ -31,22 +31,47 @@ struct symboltable
     link z;
 };
 
+static void add_free_link(link flink){
+    flink->next=free_list_head->next;
+    free_list_head->next=flink;
+}
+
+static void link_list_init(int maxN){
+
+    int i;
+    link tmp
+    ;
+    free_list_head=kmalloc(sizeof(struct STnode));
+    free_list_tail=kmalloc(sizeof(struct STnode));
+    free_list_head->next=free_list_tail;
+
+
+    for(i=0; i<maxN; i++){
+        tmp=kmalloc(sizeof(struct STnode));
+        tmp->item.index=-1;
+        add_free_link(tmp);
+    }
+
+     
+}
+
+
+static link get_free_link(void){
+    link tmp;
+
+    tmp=free_list_head->next;
+    if(tmp == free_list_tail){
+        panic("no free link in ipt_hash");
+    }
+    free_list_head->next=tmp->next;
+
+    return tmp;
+}
+
 link NEW(Item item, link next)
 {   
    
-    int j=0;
-    while(link_list[free_link].item.index != -1){
-        free_link++;
-        j++;
-        if(free_link >= n_entries){
-            free_link=0;
-        }
-        if(j >= n_entries){
-            panic("No free entry in hash table\n");
-        }
-
-    }
-    link x = &link_list[free_link];
+    link x = get_free_link();
     KASSERT(x != NULL);
     
     x->item.index = item->index;
@@ -56,17 +81,14 @@ link NEW(Item item, link next)
     return x;
 }
 
+
 ST STinit(int maxN)
 {
     int i;
     ST st = kmalloc(sizeof *st);
     KASSERT(st != NULL);
-    link_list=kmalloc(sizeof(struct STnode)*maxN);
+    link_list_init(maxN);
     item_init();
-    for(i=0; i<maxN; i++){
-        link_list[i].item.index=-1;
-    }
-    free_link=0;
     n_entries=maxN;
     st->M = maxN;
     st->heads = kmalloc(st->M * sizeof(link));
@@ -132,6 +154,7 @@ link deleteR(link x, Key k)
     {
         link t = x->next;
         x->item.index=-1;
+        add_free_link(x);
         return t;
     }
 
