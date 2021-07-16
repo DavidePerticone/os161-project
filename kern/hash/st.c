@@ -283,23 +283,17 @@ ST STinit(int maxN)
     return st;
 }
 
-/*static int concatenate(int a, unsigned b) { 
-    unsigned x = 10; 
-    while(b >= x) 
-        x *= 10; 
-    return a * x + b; 
-} */
+
 
 int hashU(Key v, int M)
 {
     unsigned x = 10;
     unsigned sum;
+    /* concatenate pid and vaddr */
     while (v.kaddr >= x)
         x *= 10;
     sum = (unsigned)v.kpid * x + v.kaddr;
 
-    //int sum = v.kaddr + v.kpid;
-    // kprintf("SUm %d %d %d\n", sum,v.kpid, v.kaddr );
     int h = sum % M;
     return h;
 }

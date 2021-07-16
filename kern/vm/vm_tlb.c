@@ -43,6 +43,9 @@ owned by the current process, and the problem of traslation virtual to physical 
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
 #define DUMBVM_STACKPAGES 18
 
+//static struct spinlock tlb_fault_lock = SPINLOCK_INITIALIZER;
+
+
 static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 {
 
@@ -140,6 +143,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	int segment;
 	int tlb_entry;
 	int result;
+	
 
 	faultaddress &= PAGE_FRAME;
 

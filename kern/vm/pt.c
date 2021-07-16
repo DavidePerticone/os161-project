@@ -26,9 +26,7 @@ static struct spinlock ipt_lock = SPINLOCK_INITIALIZER;
 static int ipt_active = 0;
 static int first_paddr;
 
-
 static ST ipt_hash = NULL;
-
 
 void setLoading(int set, int entry)
 {
@@ -89,6 +87,8 @@ int init_victim(int first_avail_paddress)
 /* return the selected victim */
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
 {
+    int tlb_entry;
+
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
 
@@ -107,7 +107,16 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             last_victim = i == nRamFrames - 1 ? 0 : i;
             *vaddr = ipt[i].vaddr;
             *pid = ipt[i].pid;
-            /* return paddr of victmi */
+            /* free ipt entry */
+            ipt[i].pid = -1;
+            /* free tlb entry */
+            tlb_entry = tlb_probe(ipt[i].vaddr, 0);
+            /* if victim page is in the tlb, invalidate the entry */
+            if (tlb_entry >= 0)
+            {
+                tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
+            }
+            /* return paddr of victim */
             spinlock_release(&ipt_lock);
 
             return i * PAGE_SIZE;
@@ -216,7 +225,6 @@ int ipt_kadd(pid_t pid, paddr_t paddr, vaddr_t vaddr)
     frame_index = paddr / PAGE_SIZE;
     KASSERT(frame_index < nRamFrames);
 
-
     spinlock_acquire(&ipt_lock);
     if (ipt_active)
     {
@@ -266,4 +274,3 @@ int hash_delete(pid_t pid, vaddr_t vaddr)
 
     return 0;
 }
-
