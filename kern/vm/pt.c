@@ -108,7 +108,8 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             /* free ipt entry */
             ipt[i].pid = -1;
             /* free tlb entry */
-            tlb_entry = tlb_probe(ipt[i].vaddr, 0);
+            
+            tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | *pid*64, 0);
             /* if victim page is in the tlb, invalidate the entry */
             if (tlb_entry >= 0)
             {
@@ -133,12 +134,13 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
  * Initialized pid of each entry to -1 to signal it is free
  */
 
+
 int create_ipt(void)
 {
     int i;
     nRamFrames = ((int)ram_getsize()) / PAGE_SIZE;
     KASSERT(nRamFrames != 0);
-    ipt_hash = STinit(577);
+    ipt_hash = STinit(nRamFrames);
 
     ipt = kmalloc(sizeof(struct ipt_entry) * nRamFrames);
 

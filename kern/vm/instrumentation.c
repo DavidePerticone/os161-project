@@ -144,9 +144,9 @@ void print_statistics(void)
     kprintf("----------------------------------------\n");
     kprintf("TLB Faults with Free: %ld               \n", tlb_misses_free);
     kprintf("----------------------------------------\n");
-    kprintf("|TLB Faults with Replace: %ld            \n", tlb_misses_full);
+    kprintf("TLB Faults with Replace: %ld            \n", tlb_misses_full);
     kprintf("----------------------------------------\n");
-    kprintf("|TLB Invalidations: %ld                  \n", tlb_invalidations);
+    kprintf("TLB Invalidations: %ld                  \n", tlb_invalidations);
     kprintf("----------------------------------------\n");
     kprintf("TLB Reloads: %ld                        \n", tlb_reloads);
     kprintf("----------------------------------------\n");

@@ -28,6 +28,7 @@
  */
 
 #include <types.h>
+#include <spl.h>
 #include <kern/errno.h>
 #include <lib.h>
 #include <addrspace.h>
@@ -93,12 +94,11 @@ void vm_bootstrap(void)
   /*allocation and deallocation of all ram to avoid using ram_stealmem*/
   firstpaddr = ram_getfirstfreeafterbootstrap(); /* get address of first free page */
   occupiedpages = ((int)firstpaddr) / PAGE_SIZE; /* calculate occupied pages by kernel */
-  init_victim(firstpaddr);                                 /* set first victim to the first available page (not used by kernel) */
+  init_victim(firstpaddr);                       /* set first victim to the first available page (not used by kernel) */
   freepages = nRamFrames - occupiedpages;        /* calculate free pages remaining*/
   addr = alloc_kpages(freepages);                /*allocate all pages available*/
   free_kpages(addr);                             /* deallocate all pages previously allocated */
   init_instrumentation();
-
 }
 
 static void vm_can_sleep(void)
@@ -125,8 +125,9 @@ vaddr_t alloc_kpages(unsigned npages)
   {
     return 0;
   }
-  for(i=0; i<npages; i++){
-      ipt_kadd(-2, pa+i*PAGE_SIZE, 0);
+  for (i = 0; i < npages; i++)
+  {
+    ipt_kadd(-2, pa + i * PAGE_SIZE, 0);
   }
   return PADDR_TO_KVADDR(pa);
 }
@@ -140,11 +141,11 @@ void free_kpages(vaddr_t addr)
     paddr_t paddr = addr - MIPS_KSEG0;
     long first = paddr / PAGE_SIZE;
     KASSERT(nRamFrames > first);
-    npages=freeppages(paddr, first);
-    for(i=0; i<npages; i++){
-      ipt_kadd(-1, paddr+i*PAGE_SIZE, 0);
-  }
-    
+    npages = freeppages(paddr, first);
+    for (i = 0; i < npages; i++)
+    {
+      ipt_kadd(-1, paddr + i * PAGE_SIZE, 0);
+    }
   }
 }
 
@@ -197,7 +198,7 @@ void as_destroy(struct addrspace *as)
 
 void as_activate(void)
 {
-  int i, spl;
+  /* int i, spl;
   struct addrspace *as;
 
   as = proc_getas();
@@ -206,7 +207,7 @@ void as_activate(void)
     return;
   }
 
-  /* Disable interrupts on this CPU while frobbing the TLB. */
+   Disable interrupts on this CPU while frobbing the TLB. 
   spl = splhigh();
 
   for (i = 0; i < NUM_TLB; i++)
@@ -214,18 +215,29 @@ void as_activate(void)
     tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
   }
 
-  splx(spl);
+  splx(spl);*/
 
   increase(TLB_INVALIDATION);
 }
 
-void as_deactivate(void)
+void as_deactivate(pid_t pid)
 {
-  /*
-	 * Write this. For many designs it won't need to actually do
-	 * anything. See proc.c for an explanation of why it (might)
-	 * be needed.
-	 */
+  int i, spl;
+  uint32_t ehi, elo;
+  
+
+  kprintf("PID: %d\n", pid);
+  spl = splhigh();
+  for (i = 0; i < NUM_TLB; i++)
+  {
+    tlb_read(&ehi, &elo, i);
+    if ((int)(ehi & TLBHI_PID) / 64 == pid)
+    {
+      kprintf("deactivating\n");
+      tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+    }
+  }
+  splx(spl);
 }
 
 /*
@@ -299,8 +311,8 @@ int as_define_stack(struct addrspace *as, vaddr_t *stackptr)
   return 0;
 }
 
-void vm_shutdown(void){
+void vm_shutdown(void)
+{
 
-		print_statistics();
-	
+  print_statistics();
 }

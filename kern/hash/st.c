@@ -85,11 +85,32 @@ link NEW(Item item, link next)
     return x;
 }
 
+
+/* check wheter a number is prime */
+static int is_prime(int n)
+{
+    int i;
+    for( i=2; i <= n/i; i++)
+        if( n%i == 0 ) return 0;
+    return 1;
+}
+/* find first prime number after or equal to n */
+static int first_prime(int n)
+{
+    while( !is_prime(n) )
+        n++;
+    
+    return n;
+}
+
+
 ST STinit(int maxN)
 {
     int i;
     ST st = kmalloc(sizeof *st);
     KASSERT(st != NULL);
+    maxN=first_prime(maxN);
+    kprintf("Hash Table dimension: %d\n", maxN);
     link_list_init(maxN);
     item_init();
     n_entries = maxN;
@@ -258,12 +279,31 @@ link NEW(Item item, link next)
     x->next = next;
     return x;
 }
+/* check wheter a number is prime */
+static int is_prime(int n)
+{
+    int i;
+    for( i=2; i <= n/i; i++)
+        if( n%i == 0 ) return 0;
+    return 1;
+}
+/* find first prime number after or equal to n */
+static int first_prime(int n)
+{
+    while( !is_prime(n) )
+        n++;
+    
+    return n;
+}
 
 ST STinit(int maxN)
 {
     int i;
     ST st = kmalloc(sizeof *st);
     KASSERT(st != NULL);
+    /* need to have a dimension that is a prime number */
+    maxN=first_prime(maxN);
+    kprintf("Hash Table dimension: %d\n", maxN);
     link_list = kmalloc(sizeof(struct STnode) * maxN);
     item_init();
     for (i = 0; i < maxN; i++)

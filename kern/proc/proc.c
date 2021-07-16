@@ -256,11 +256,12 @@ void proc_destroy(struct proc *proc)
 		 * random other process while it's still running...
 		 */
 		struct addrspace *as;
-
+		as_deactivate(proc->p_pid);
 		if (proc == curproc)
-		{
+		{	
+
 			as = proc_setas(NULL);
-			as_deactivate();
+			
 		}
 		else
 		{
