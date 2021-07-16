@@ -158,7 +158,7 @@ getppages(unsigned long npages, int kmem)
 
     if (paddr == 0 && isTableActive())
     {
-       
+        spinlock_acquire(&freemem_lock);
         /* we can only get one page at a time, otherwise in case of swap problems occur */
         if (!kmem)
         {
@@ -180,9 +180,8 @@ getppages(unsigned long npages, int kmem)
         /* get in which segment the page is */
         victim_segment = address_segment(vaddr, as_victim);
         /* swap page out */
+        spinlock_release(&freemem_lock);
         result = swap_out(paddr, vaddr, victim_segment);
-        /* delete entry from hash */
-        hash_delete(pid_victim, vaddr);
         if (result)
         {
             return 0;

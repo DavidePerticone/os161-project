@@ -78,14 +78,14 @@ int tlb_probe(uint32_t entryhi, uint32_t entrylo);
 
 /* Fields in the high-order word */
 #define TLBHI_VPAGE   0xfffff000
-/*      TLBHI_PID     0x00000fc0 */
+#define TLBHI_PID     0x00000fc0 
 
 /* Fields in the low-order word */
 #define TLBLO_PPAGE   0xfffff000
-#define TLBLO_NOCACHE 0x00000800
+#define TLBLOTLBHI_PID_NOCACHE 0x00000800
 #define TLBLO_DIRTY   0x00000400
 #define TLBLO_VALID   0x00000200
-/*      TLBLO_GLOBAL  0x00000100 */
+#define TLBLO_GLOBAL  0x00000100 
 
 /*
  * Values for completely invalid TLB entries. The TLB entry index should

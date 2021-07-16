@@ -423,14 +423,12 @@ int swap_in(vaddr_t page)
     pid = curproc->p_pid;
 
     /* page must be in swap file */
-    spinlock_acquire(&swap_lock);
     for (i = 0; i < ENTRIES; i++)
     {
         if (swap_table[i].pid == pid && swap_table[i].page == page)
         {
             //kprintf("Swapping in\n");
             swap_table[i].pid = -1;
-            spinlock_release(&swap_lock);
             result = file_read_paddr(v, page, PAGE_SIZE, i * PAGE_SIZE);
             KASSERT(result == PAGE_SIZE);
             increase(SWAP_IN_PAGE);
@@ -439,7 +437,6 @@ int swap_in(vaddr_t page)
         }
     }
 
-    spinlock_release(&swap_lock);
     return 1;
 }
 /*

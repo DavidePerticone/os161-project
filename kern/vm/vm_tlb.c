@@ -43,12 +43,12 @@ owned by the current process, and the problem of traslation virtual to physical 
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
 #define DUMBVM_STACKPAGES 18
 
-//static struct spinlock tlb_fault_lock = SPINLOCK_INITIALIZER;
+static struct spinlock tlb_fault_lock = SPINLOCK_INITIALIZER;
 
 
 static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 {
-
+	
 	int i;
 	uint32_t ehi, elo;
 	int victim;
@@ -64,8 +64,10 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 		{
 			continue;
 		}
+		
 		increase(TLB_MISS_FREE);
 		ehi = faultaddress;
+		
 		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, i);
@@ -217,6 +219,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			paddr = as_prepare_load(1);
 			
 			/* TODO should invalidate the TLB entry of gotten page ? */
+			spinlock_acquire(&tlb_fault_lock);
 
 			KASSERT(paddr != 0);
 			/* 
@@ -240,6 +243,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			update_tlb(faultaddress, paddr);
 
 			/* look in the swapfile (if the faulting address is not in code segment) */
+			spinlock_release(&tlb_fault_lock);
+
 			if (segment != 1)
 			{
 				result = swap_in(faultaddress);
@@ -249,9 +254,11 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				result = 1;
 			}
 
+			as_complete_load(curproc->p_addrspace);
 			if (result)
 			{
 				/* load page at vaddr = faultaddress if not in swapfile */
+				
 				result = load_page(page_offset_from_segbase, faultaddress, segment);
 				if (result)
 				{
@@ -259,6 +266,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				}
 			}
 			/* set the entry in the ipt as not loading, so that it can be set as read-only in case of code segment */
+			spinlock_acquire(&tlb_fault_lock);
+
 			setLoading(0, paddr / PAGE_SIZE);
 
 			/* after loading the page, set the entry to READ_ONLY in case of code page */
@@ -266,21 +275,27 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				/* Disable interrupts on this CPU while frobbing the TLB. */
 				spl = splhigh();
-
+				
 				tlb_entry = tlb_probe(faultaddress, 0);
 				KASSERT(tlb_entry >= 0);
+				ehi = faultaddress;
+				elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
 				/* use ~TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
 				tlb_write(ehi, elo & ~TLBLO_DIRTY, tlb_entry);
 
 				splx(spl);
 			}
+			spinlock_release(&tlb_fault_lock);
+
 			return 0;
 		}
 		else
 		{
+
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-			
+			spinlock_acquire(&tlb_fault_lock);
+
 
 			KASSERT(paddr != 0);
 			/* 
@@ -297,6 +312,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 
 			update_tlb(faultaddress, paddr);
 
+			spinlock_release(&tlb_fault_lock);
 			result = swap_in(faultaddress);
 			if(result){
 				increase(NEW_PAGE_ZEROED);
@@ -305,8 +321,10 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 
 		return 0;
 	}
-	else
+	else 
 	{
+		spinlock_acquire(&tlb_fault_lock);
+
 		increase(TLB_RELOAD);
 		/* make sure it's page-aligned */
 		KASSERT((paddr & PAGE_FRAME) == paddr);
@@ -337,6 +355,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 
 
 			splx(spl);
+			spinlock_release(&tlb_fault_lock);
 
 			return 0;
 		}
@@ -344,7 +363,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	/*select a victim to be replaced*/
 	victim = tlb_get_rr_victim();
 
-	ehi = faultaddress;
+			ehi = faultaddress;
 	if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
 	{
 		elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
@@ -356,6 +375,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 	tlb_write(ehi, elo, victim);
 	splx(spl);
+	spinlock_release(&tlb_fault_lock);
 
 	return 0;
 }
@@ -370,7 +390,6 @@ int tlb_get_rr_victim(void)
 	increase(TLB_MISS_FULL);
 	return victim;
 }
-
 void vm_tlbshootdown(const struct tlbshootdown *ts)
 {
 	(void)ts;

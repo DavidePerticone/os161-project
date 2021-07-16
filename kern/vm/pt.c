@@ -33,7 +33,6 @@ void setLoading(int set, int entry)
 
     KASSERT(set == 0 || set == 1);
     KASSERT(entry > 0 && entry < nRamFrames);
-    spinlock_acquire(&ipt_lock);
     if (set)
     {
         ipt[entry].vaddr |= LOAD_MASK;
@@ -43,7 +42,6 @@ void setLoading(int set, int entry)
 
         ipt[entry].vaddr &= ~LOAD_MASK;
     }
-    spinlock_release(&ipt_lock);
 }
 
 int isLoading(int entry)
@@ -116,6 +114,8 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             {
                 tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
             }
+            /* delete entry from hash */
+            hash_delete(*pid, *vaddr);
             /* return paddr of victim */
             spinlock_release(&ipt_lock);
 
@@ -266,11 +266,9 @@ void free_ipt_process(pid_t pid)
 
 int hash_delete(pid_t pid, vaddr_t vaddr)
 {
-    spinlock_acquire(&ipt_lock);
     KASSERT(pid > 0);
     KASSERT(vaddr < 0x80000000);
     STdelete(ipt_hash, pid, vaddr);
-    spinlock_release(&ipt_lock);
 
     return 0;
 }

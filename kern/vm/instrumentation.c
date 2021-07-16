@@ -59,6 +59,9 @@ static long int swap_out_pages;
 
 static long int swap_in_pages;
 
+static struct spinlock instr_lock = SPINLOCK_INITIALIZER;
+
+
 void init_instrumentation(void)
 {
 
@@ -76,6 +79,8 @@ void init_instrumentation(void)
 
 void increase(long int indicator)
 {
+
+    spinlock_acquire(&instr_lock);
 
     switch (indicator)
     {
@@ -123,6 +128,8 @@ void increase(long int indicator)
 
         break;
     }
+
+    spinlock_release(&instr_lock);
 
     return;
 }
