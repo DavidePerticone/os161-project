@@ -87,10 +87,7 @@ struct addrspace
  *    as_activate - make curproc's address space the one currently
  *                "seen" by the processor.
  *
- *    as_deactivate - unload curproc's address space so it isn't
- *                currently "seen" by the processor. This is used to
- *                avoid potentially "seeing" it while it's being
- *                destroyed.
+ *    as_deactivate - used to invalidate all the entries in the TLB refering to a process 
  *
  *    as_destroy - dispose of an address space. You may need to change
  *                the way this works if implementing user-level threads.

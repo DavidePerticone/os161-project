@@ -1,24 +1,4 @@
-/* SOLVED: If we set dirty bit to readonly in both cases (loading from disk and setting entry in TLB),
-there can be a race condition. One thread waits on the load_page, the other see the ipt with the desired entry
-and set the dirty bit to dirty- In this way, the load of the page causes readonly-fault
-
-DONE: we should swap out a page when doing getppages. In this way also the kernel can get pages
-when memory is full.
-
-DONE: swap of only data and stack pages: code should be trown out
-
-
-
-IMPLEMENTED: zero pages when allocating them
-
-IMPLEMENTE: insert various locks and synch mechanism
-
-IMPLEMENTE: set -1 pid swap_table when process terminates
-
-IMPLEMENTE: file_write_paddr receives vaddr instead of paddr. Basically, it works because we swap out only pages
-owned by the current process, and the problem of traslation virtual to physical does not present.
-
-
+/* 
 TODO: insert locks for tlb modification
 */
 
@@ -69,7 +49,7 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr, pid_t pid)
 		}
 
 		increase(TLB_MISS_FREE);
-		ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
+		ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
 
 		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
@@ -83,7 +63,7 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr, pid_t pid)
 		/*select a victim to be replaced*/
 		victim = tlb_get_rr_victim();
 
-		ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
+		ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
 		;
 		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
@@ -263,7 +243,6 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* faultaddress is at page multiple, if we subtract the segment address we find the offset from the segment base */
 			page_offset_from_segbase = faultaddress - (segment == 1 ? as->as_vbase1 : as->as_vbase2);
 
-			/* TODO should start a cs here? */
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
 
@@ -329,9 +308,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				spl = splhigh();
 
 #if OPT_TLB
-				tlb_entry = tlb_probe((faultaddress & ~TLBHI_PID) | pid * 64, 0);
+				tlb_entry = tlb_probe((faultaddress & ~TLBHI_PID) | pid << 6, 0);
 				KASSERT(tlb_entry >= 0);
-				ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
+				ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
 				elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;
 #else
 				tlb_entry = tlb_probe(faultaddress, 0);
@@ -403,7 +382,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			}
 			increase(TLB_MISS_FREE);
 #if OPT_TLB
-			ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
+			ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
 			if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
 			{
 				elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;
@@ -437,7 +416,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	victim = tlb_get_rr_victim();
 
 #if OPT_TLB
-	ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
+	ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
 	if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
 	{
 		elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;

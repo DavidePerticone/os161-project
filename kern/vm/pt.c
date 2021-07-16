@@ -110,7 +110,7 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             ipt[i].pid = -1;
             /* free tlb entry */
             #if OPT_TLB
-            tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | *pid*64, 0);
+            tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | *pid << 6, 0);
             #else
             tlb_entry = tlb_probe(ipt[i].vaddr, 0);
             #endif
