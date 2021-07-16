@@ -20,13 +20,15 @@
 #include <item.h>
 #include "opt-paging.h"
 
-
+#define SetBit(A,k)     ( A[(k/32)] |= (1 << (k%32)) )
+#define ClearBit(A,k)   ( A[(k/32)] &= ~(1 << (k%32)) )
+#define TestBit(A,k)    ( A[(k/32)] & (1 << (k%32)) )
 
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static struct spinlock freemem_lock = SPINLOCK_INITIALIZER;
 static int nRamFrames = 0;
-static unsigned char *freeRamFrames = NULL;
+static int *freeRamFrames = NULL;
 static unsigned long *allocSize = NULL;
 
 void print_freeRamFrames(void)
@@ -36,7 +38,7 @@ void print_freeRamFrames(void)
         kprintf("Frame Status\n");
 
     for(i=0; i<nRamFrames; i++){
-        kprintf("  %d    %d\n", i, freeRamFrames[i]);
+        kprintf("  %d    %d\n", i, TestBit(freeRamFrames, i));
     }
       spinlock_release(&freemem_lock);
   
@@ -46,13 +48,13 @@ int init_freeRamFrames(int ramFrames)
 {
     int i;
     nRamFrames = ramFrames;
-    freeRamFrames = kmalloc(sizeof(unsigned char) * nRamFrames);
+    freeRamFrames = kmalloc(sizeof(int) *  nRamFrames / 32 == 0 ? nRamFrames / 32 : nRamFrames / 32+1 );
     if (freeRamFrames == NULL)
         return 1;
 
     for (i = 0; i < nRamFrames; i++)
     {
-        freeRamFrames[i] = (unsigned char)0;
+        ClearBit(freeRamFrames, i);
     }
 
     return 0;
@@ -94,9 +96,9 @@ getfreeppages(unsigned long npages)
 
     for (i = 0, first = found = -1; i < nRamFrames; i++)
     {
-        if (freeRamFrames[i])
+        if (TestBit(freeRamFrames, i))
         {
-            if (i == 0 || !freeRamFrames[i - 1])
+            if (i == 0 || !TestBit(freeRamFrames, i-1))
                 first = i; /* set first free in an interval */
             if (i - first + 1 >= np)
             {
@@ -110,7 +112,7 @@ getfreeppages(unsigned long npages)
     {
         for (i = found; i < found + np; i++)
         {
-            freeRamFrames[i] = (unsigned char)0;
+            ClearBit(freeRamFrames, i);
         }
         allocSize[found] = np;
         addr = (paddr_t)found * PAGE_SIZE;
@@ -209,7 +211,7 @@ int freeppages(paddr_t addr, long first_page)
     spinlock_acquire(&freemem_lock);
     for (i = first; i < first + np; i++)
     {
-        freeRamFrames[i] = (unsigned char)1;
+        SetBit(freeRamFrames, i);
     }
 
     spinlock_release(&freemem_lock);
