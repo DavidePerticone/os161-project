@@ -7,4 +7,5 @@ kmalloctest.o: ../../test/kmalloctest.c ../../include/types.h \
  ../../include/threadlist.h includelinks/machine/thread.h \
  ../../include/setjmp.h includelinks/kern/machine/setjmp.h \
  ../../include/synch.h opt-synch.h ../../include/vm.h \
- includelinks/machine/vm.h ../../include/test.h opt-dumbvm.h
+ includelinks/machine/vm.h ../../include/test.h ../../include/coremap.h \
+ opt-dumbvm.h

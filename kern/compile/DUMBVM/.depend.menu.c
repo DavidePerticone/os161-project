@@ -11,8 +11,7 @@ menu.o: ../../main/menu.c ../../include/types.h \
  ../../include/array.h ../../include/threadlist.h \
  includelinks/machine/thread.h ../../include/setjmp.h \
  includelinks/kern/machine/setjmp.h ../../include/proc.h opt-paging.h \
- opt-paging.h ../../include/elf.h includelinks/machine/elf.h \
- ../../include/syscall.h opt-paging.h opt-waitpid.h ../../include/vfs.h \
- ../../include/sfs.h ../../include/fs.h ../../include/vnode.h \
- ../../include/kern/sfs.h ../../include/test.h opt-sfs.h opt-net.h \
- ../../include/instrumentation.h
+ ../../include/elf.h includelinks/machine/elf.h ../../include/syscall.h \
+ opt-waitpid.h ../../include/vfs.h ../../include/sfs.h ../../include/fs.h \
+ ../../include/vnode.h ../../include/kern/sfs.h ../../include/test.h \
+ opt-sfs.h opt-net.h ../../include/instrumentation.h

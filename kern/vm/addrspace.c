@@ -44,6 +44,8 @@
 #include <swapfile.h>
 #include <instrumentation.h>
 #include <st.h>
+#include "opt-tlb.h"
+
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
  * assignment, this file is not compiled or linked or in any way
@@ -198,7 +200,8 @@ void as_destroy(struct addrspace *as)
 
 void as_activate(void)
 {
-  /* int i, spl;
+ #if !OPT_TLB
+  int i, spl;
   struct addrspace *as;
 
   as = proc_getas();
@@ -207,7 +210,7 @@ void as_activate(void)
     return;
   }
 
-   Disable interrupts on this CPU while frobbing the TLB. 
+   /*Disable interrupts on this CPU while frobbing the TLB. */
   spl = splhigh();
 
   for (i = 0; i < NUM_TLB; i++)
@@ -215,31 +218,35 @@ void as_activate(void)
     tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
   }
 
-  splx(spl);*/
+  splx(spl);
+  #endif
 
   increase(TLB_INVALIDATION);
 }
-
+#if OPT_TLB
 void as_deactivate(pid_t pid)
 {
+  
   int i, spl;
   uint32_t ehi, elo;
   
-
-  kprintf("PID: %d\n", pid);
   spl = splhigh();
   for (i = 0; i < NUM_TLB; i++)
   {
     tlb_read(&ehi, &elo, i);
     if ((int)(ehi & TLBHI_PID) / 64 == pid)
     {
-      kprintf("deactivating\n");
       tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
     }
   }
   splx(spl);
-}
 
+}
+#else
+void as_deactivate(void){
+  
+}
+#endif
 /*
  * Set up a segment at virtual address VADDR of size MEMSIZE. The
  * segment in memory extends from VADDR up to (but not including)

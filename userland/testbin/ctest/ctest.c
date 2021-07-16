@@ -44,7 +44,7 @@
  * DEFAULT is the default stride.
  * Note that SIZE and DEFAULT should be relatively prime.
  */
-#define SIZE      (1024*1024/sizeof(struct entry))
+#define SIZE      (2048*2048/sizeof(struct entry))
 #define DEFAULT   477
 
 struct entry {

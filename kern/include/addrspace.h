@@ -38,6 +38,7 @@
 #include "opt-dumbvm.h"
 #include "opt-paging.h"
 #include <pt.h>
+#include "opt-tlb.h"
 
 #define DUMBVM_STACKPAGES 18
 
@@ -114,7 +115,11 @@ struct addrspace
 struct addrspace *as_create(void);
 int as_copy(struct addrspace *src, struct addrspace **ret);
 void as_activate(void);
+#if OPT_TLB
 void as_deactivate(pid_t pid);
+#else
+void as_deactivate(void);
+#endif
 void as_destroy(struct addrspace *);
 
 int as_define_region(struct addrspace *as,

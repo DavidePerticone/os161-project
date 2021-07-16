@@ -18,6 +18,8 @@ IMPLEMENTE: set -1 pid swap_table when process terminates
 IMPLEMENTE: file_write_paddr receives vaddr instead of paddr. Basically, it works because we swap out only pages
 owned by the current process, and the problem of traslation virtual to physical does not present.
 
+
+TODO: insert locks for tlb modification
 */
 
 #include <vm_tlb.h>
@@ -38,6 +40,7 @@ owned by the current process, and the problem of traslation virtual to physical 
 #include <swapfile.h>
 #include <syscall.h>
 #include <instrumentation.h>
+#include <opt-tlb.h>
 
 /* under dumbvm, always have 72k of user stack */
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
@@ -45,7 +48,7 @@ owned by the current process, and the problem of traslation virtual to physical 
 
 static struct spinlock tlb_fault_lock = SPINLOCK_INITIALIZER;
 
-
+#if OPT_TLB
 static void update_tlb(vaddr_t faultaddress, paddr_t paddr, pid_t pid)
 {
 	(void)pid;
@@ -64,11 +67,11 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr, pid_t pid)
 		{
 			continue;
 		}
-		
+
 		increase(TLB_MISS_FREE);
-		ehi = (faultaddress & ~TLBHI_PID) | pid*64;
-		
-		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL ;
+		ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
+
+		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, i);
 
@@ -80,14 +83,57 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr, pid_t pid)
 		/*select a victim to be replaced*/
 		victim = tlb_get_rr_victim();
 
-		ehi = (faultaddress & ~TLBHI_PID) | pid*64;;
-		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) &  ~TLBLO_GLOBAL;
+		ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
+		;
+		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, victim);
 	}
 	splx(spl);
 }
+#else
+static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
+{
 
+	int i;
+	uint32_t ehi, elo;
+	int victim;
+	int spl;
+	/* Disable interrupts on this CPU while frobbing the TLB. */
+	spl = splhigh();
+
+	/* add entry in the TLB */
+	for (i = 0; i < NUM_TLB; i++)
+	{
+		tlb_read(&ehi, &elo, i);
+		if (elo & TLBLO_VALID)
+		{
+			continue;
+		}
+
+		increase(TLB_MISS_FREE);
+		ehi = faultaddress;
+
+		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
+		tlb_write(ehi, elo, i);
+
+		break;
+	}
+	/* if all entry are occupied, find a victim and replace it */
+	if (i == NUM_TLB)
+	{
+		/*select a victim to be replaced*/
+		victim = tlb_get_rr_victim();
+
+		ehi = faultaddress;
+		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
+		tlb_write(ehi, elo, victim);
+	}
+	splx(spl);
+}
+#endif
 int address_segment(vaddr_t faultaddress, struct addrspace *as)
 {
 
@@ -145,10 +191,12 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	int segment;
 	int tlb_entry;
 	int result;
+#if OPT_TLB
 	int pid;
+	pid = curproc->p_pid;
+#endif
 
 	faultaddress &= PAGE_FRAME;
-	pid=curproc->p_pid;
 
 	DEBUG(DB_VM, "dumbvm: fault: 0x%x\n", faultaddress);
 
@@ -218,7 +266,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* TODO should start a cs here? */
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
-			
+
 			/* TODO should invalidate the TLB entry of gotten page ? */
 			spinlock_acquire(&tlb_fault_lock);
 
@@ -240,8 +288,11 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
-
+#if OPT_TLB
 			update_tlb(faultaddress, paddr, pid);
+#else
+			update_tlb(faultaddress, paddr);
+#endif
 
 			/* look in the swapfile (if the faulting address is not in code segment) */
 			spinlock_release(&tlb_fault_lock);
@@ -259,7 +310,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			if (result)
 			{
 				/* load page at vaddr = faultaddress if not in swapfile */
-				
+
 				result = load_page(page_offset_from_segbase, faultaddress, segment);
 				if (result)
 				{
@@ -276,11 +327,18 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				/* Disable interrupts on this CPU while frobbing the TLB. */
 				spl = splhigh();
-				
-				tlb_entry = tlb_probe((faultaddress & ~TLBHI_PID) | pid*64, 0);
+
+#if OPT_TLB
+				tlb_entry = tlb_probe((faultaddress & ~TLBHI_PID) | pid * 64, 0);
 				KASSERT(tlb_entry >= 0);
-				ehi = (faultaddress & ~TLBHI_PID) | pid*64;
-				elo =( (paddr & ~TLBLO_DIRTY) | TLBLO_VALID )& ~TLBLO_GLOBAL;
+				ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
+				elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;
+#else
+				tlb_entry = tlb_probe(faultaddress, 0);
+				KASSERT(tlb_entry >= 0);
+				ehi = faultaddress;
+				elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
+#endif
 				/* use ~TLBLO_DIRTY to set the dirty bit to 0 and leave ther rest untouched */
 				tlb_write(ehi, elo & ~TLBLO_DIRTY, tlb_entry);
 
@@ -297,7 +355,6 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			paddr = as_prepare_load(1);
 			spinlock_acquire(&tlb_fault_lock);
 
-
 			KASSERT(paddr != 0);
 			/* 
 			 * 
@@ -310,19 +367,23 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
-
+#if OPT_TLB
 			update_tlb(faultaddress, paddr, pid);
+#else
+			update_tlb(faultaddress, paddr);
+#endif
 
 			spinlock_release(&tlb_fault_lock);
 			result = swap_in(faultaddress);
-			if(result){
+			if (result)
+			{
 				increase(NEW_PAGE_ZEROED);
 			}
 		}
 
 		return 0;
 	}
-	else 
+	else
 	{
 		spinlock_acquire(&tlb_fault_lock);
 
@@ -341,19 +402,30 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				continue;
 			}
 			increase(TLB_MISS_FREE);
-			ehi = (faultaddress & ~TLBHI_PID) | pid*64;
+#if OPT_TLB
+			ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
 			if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
 			{
-				elo =( (paddr & ~TLBLO_DIRTY) | TLBLO_VALID )& ~TLBLO_GLOBAL;
+				elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;
 			}
 			else
 			{
 				elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
 			}
+#else
+			ehi = faultaddress;
+			if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
+			{
+				elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
+			}
+			else
+			{
+				elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+			}
+#endif
 
 			DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 			tlb_write(ehi, elo, i);
-
 
 			splx(spl);
 			spinlock_release(&tlb_fault_lock);
@@ -364,15 +436,27 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	/*select a victim to be replaced*/
 	victim = tlb_get_rr_victim();
 
-			ehi = (faultaddress & ~TLBHI_PID) | pid*64;
+#if OPT_TLB
+	ehi = (faultaddress & ~TLBHI_PID) | pid * 64;
 	if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
 	{
-		elo =( (paddr & ~TLBLO_DIRTY) | TLBLO_VALID )& ~TLBLO_GLOBAL;
+		elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;
 	}
 	else
 	{
 		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
 	}
+#else
+	ehi = faultaddress;
+	if (segment == 1 && !isLoading(paddr / PAGE_SIZE))
+	{
+		elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
+	}
+	else
+	{
+		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+	}
+#endif
 	DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 	tlb_write(ehi, elo, victim);
 	splx(spl);

@@ -529,7 +529,6 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
     }
     spinlock_release(&swap_lock);
 
-    print_swap();
 
     panic("Out of swapspace\n");
 }
