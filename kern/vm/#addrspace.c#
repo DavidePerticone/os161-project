@@ -193,10 +193,9 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
   /* look in the IPT to see if there are pages to copy */
   paddr = as_prepare_load(1);
 
-
-    for (i = 0; i < (int)newas->as_npages2; i++)
+  for (i = 0; i < (int)newas->as_npages1; i++)
   {
-    result = ipt_lookup(old_pid, newas->as_vbase2 + i * PAGE_SIZE);
+    result = ipt_lookup(old_pid, newas->as_vbase1 + i * PAGE_SIZE);
     if (result)
     {
       /* for each page to copy */
@@ -204,31 +203,12 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
       memmove((void *)PADDR_TO_KVADDR(paddr),
               (const void *)PADDR_TO_KVADDR(result),
               PAGE_SIZE);
-      ipt_add(new_pid, paddr, newas->as_vbase2 + i * PAGE_SIZE);
+      ipt_add(new_pid, paddr, newas->as_vbase1 + i * PAGE_SIZE);
       paddr = as_prepare_load(1);
     }
   }
 
-      result=1;
-      for (i = 0; result; i++)
-  {
-    result = ipt_lookup(old_pid, 0x7FFFF000 - i * PAGE_SIZE);
-    if (result)
-    {
-      /* for each page to copy */
-
-      memmove((void *)PADDR_TO_KVADDR(paddr),
-              (const void *)PADDR_TO_KVADDR(result),
-              PAGE_SIZE);
-      ipt_add(new_pid, paddr, 0x7FFFF000 - i * PAGE_SIZE);
-      paddr = as_prepare_load(1);
-    }
-  }
-
-  
-  
-  freeppages(paddr, paddr / PAGE_SIZE);
-  //print_ipt();
+  print_ipt();
 
 
 

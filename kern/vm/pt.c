@@ -56,6 +56,15 @@ int isLoading(int entry)
     return (val & LOAD_MASK) == LOAD_MASK;
 }
 
+static int isLoadingInternal(int entry)
+{
+    KASSERT(entry > 0 && entry < nRamFrames);
+    /*Protect the read of an entry, avoid other threads changing the entry while the read in on*/
+    int val = ipt[entry].vaddr;
+    /*Get the MSB of the entry, if set return 1 else 0. This tells if the entry is still loading or not*/
+    return (val & LOAD_MASK) == LOAD_MASK;
+}
+
 /*DEBUG function used to check the behavior of the page table*/
 void print_ipt(void)
 {
@@ -86,7 +95,7 @@ int init_victim(int first_avail_paddress)
 /* return the selected victim */
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
 {
-    int tlb_entry;
+    int tlb_entry, spl;
 
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
@@ -100,7 +109,7 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
          *This guarantees that pages allocated to kernel are not touched and implements a 
          *round robin policy.
          */
-        if (ipt[i].pid != -2 && i > last_victim && first_paddr <= i * PAGE_SIZE)
+        if (ipt[i].pid != -2 && ipt[i].pid != -1 && i > last_victim && first_paddr <= i * PAGE_SIZE && !isLoadingInternal(i))
         {
             /* update last victim: if last frame is selected, start again from the beginning */
             last_victim = i == nRamFrames - 1 ? 0 : i;
@@ -109,6 +118,7 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             /* free ipt entry */
             ipt[i].pid = -1;
             /* free tlb entry */
+            spl = splhigh();
             #if OPT_TLB
             tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | *pid << 6, 0);
             #else
@@ -119,6 +129,7 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             {
                 tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
             }
+            splx(spl);
             /* delete entry from hash */
             hash_delete(*pid, *vaddr);
             /* return paddr of victim */
@@ -137,6 +148,7 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
  * One entry for each frame in the ram.
  * Initialized pid of each entry to -1 to signal it is free
  */
+
 
 
 int create_ipt(void)
@@ -195,6 +207,8 @@ paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr)
 /* 
  * Convinience function used to add an entry in the ipt.
  */
+
+
 
 int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr)
 {

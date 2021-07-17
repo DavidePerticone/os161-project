@@ -119,7 +119,7 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
 
   /* done here as we need to duplicate the address space 
      of thbe current process */
-  as_copy(curproc->p_addrspace, &(newp->p_addrspace), curproc->p_pid);
+  as_copy(curproc->p_addrspace, &(newp->p_addrspace), curproc->p_pid, newp->p_pid);
   if(newp->p_addrspace == NULL){
     proc_destroy(newp); 
     return ENOMEM; 

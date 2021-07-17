@@ -185,7 +185,7 @@ getppages(unsigned long npages, int kmem)
         {
             KASSERT(npages == 1);
         }
-        if (paddr == 0 && kmem)
+        if (paddr == 0 && kmem && npages!=1)
         {
             print_freeRamFrames();
             panic("No contiguous %ld free ram frames for kernel allocation", npages);

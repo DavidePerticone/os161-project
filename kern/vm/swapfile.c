@@ -421,13 +421,14 @@ int swap_in(vaddr_t page)
     pid_t pid;
     pid = curproc->p_pid;
 
+    spinlock_acquire(&swap_lock);
     /* page must be in swap file */
     for (i = 0; i < ENTRIES; i++)
-    {
+    {      
         if (swap_table[i].pid == pid && swap_table[i].page == page)
         {
-            //kprintf("Swapping in\n");
             swap_table[i].pid = -1;
+            spinlock_release(&swap_lock);
             result = file_read_paddr(v, page, PAGE_SIZE, i * PAGE_SIZE);
             KASSERT(result == PAGE_SIZE);
             increase(SWAP_IN_PAGE);
@@ -435,7 +436,7 @@ int swap_in(vaddr_t page)
             return 0;
         }
     }
-
+    spinlock_release(&swap_lock);
     return 1;
 }
 /*
@@ -450,6 +451,8 @@ int swap_in(vaddr_t page)
  *  perform the write with UIO_SYSSPACE. In this way, the translation is done as if it was
  *  a kernel address, allowing us to perform a write using almost directly a physical address.
  */
+
+
 
 static int
 file_write_paddr(struct vnode *vn, paddr_t buf_ptr, size_t size, off_t offset)

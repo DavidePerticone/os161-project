@@ -221,11 +221,16 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	segment = address_segment(faultaddress, as);
 	if (segment == EFAULT)
 	{
-		print_ipt();
+		//print_ipt();
+		kprintf("PID: %d\n", curproc->p_pid);
 		return EFAULT;
 	}
 
 	increase(TLB_MISS);
+
+	/*if( curproc->p_pid == 3){
+		kprintf("Faulting Process: %d\n", curproc->p_pid);
+	}*/
 
 	/* check if page is in memory */
 	paddr = ipt_lookup(curproc->p_pid, faultaddress);

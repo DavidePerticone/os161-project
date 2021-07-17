@@ -198,10 +198,10 @@ main(int argc, char *argv[])
 {
 	static const char expected[] =
 		"|----------------------------|\n";
-	int nowait=0;
+//	int nowait=0;
 
 	if (argc==2 && !strcmp(argv[1], "-w")) {
-		nowait=1;
+	//	nowait=0;
 	}
 	else if (argc!=1 && argc!=0) {
 		warnx("usage: forktest [-w]");
@@ -210,7 +210,7 @@ main(int argc, char *argv[])
 	warnx("Starting. Expect this many:");
 	write(STDERR_FILENO, expected, strlen(expected));
 
-	test(nowait);
+	test(0);
 
 	warnx("Complete.");
 	return 0;
