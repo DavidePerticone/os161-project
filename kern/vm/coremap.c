@@ -20,10 +20,26 @@
 #include <item.h>
 #include "opt-paging.h"
 
-#define SetBit(A,k)     ( A[(k/32)] |= (1 << (k%32)) )
-#define ClearBit(A,k)   ( A[(k/32)] &= ~(1 << (k%32)) )
-#define TestBit(A,k)    ( A[(k/32)] & (1 << (k%32)) )
 
+static void SetBit(int *A, int k)
+{
+
+    A[k / 32] |= 1 << (k % 32); // Set the bit at the k-th position in A[i]
+}
+
+static void ClearBit(int *A, int k)
+{
+
+    A[k / 32] &= ~(1 << (k % 32));
+}
+
+static int TestBit(int *A, int k)
+{
+    if ((A[k / 32] & (1 << (k % 32))) != 0)
+        return 1;
+    else
+        return 0;
+}
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static struct spinlock freemem_lock = SPINLOCK_INITIALIZER;
@@ -34,21 +50,19 @@ static unsigned long *allocSize = NULL;
 void print_freeRamFrames(void)
 {
     int i;
-          spinlock_acquire(&freemem_lock);
-        kprintf("Frame Status\n");
+    kprintf("Frame Status\n");
 
-    for(i=0; i<nRamFrames; i++){
+    for (i = 0; i < nRamFrames; i++)
+    {
         kprintf("  %d    %d\n", i, TestBit(freeRamFrames, i));
     }
-      spinlock_release(&freemem_lock);
-  
 }
 
 int init_freeRamFrames(int ramFrames)
 {
     int i;
     nRamFrames = ramFrames;
-    freeRamFrames = kmalloc(sizeof(int) *  nRamFrames / 32 == 0 ? nRamFrames / 32 : nRamFrames / 32+1 );
+    freeRamFrames = kmalloc(sizeof(int) * nRamFrames / 32 == 0 ? nRamFrames / 32 : nRamFrames / 32 + 1);
     if (freeRamFrames == NULL)
         return 1;
 
@@ -88,17 +102,19 @@ getfreeppages(unsigned long npages)
 {
     paddr_t addr;
     long i, first, found, np = (long)npages;
+    int result;
 
     if (!isTableActive())
         return 0;
     spinlock_acquire(&freemem_lock);
 
-
     for (i = 0, first = found = -1; i < nRamFrames; i++)
     {
-        if (TestBit(freeRamFrames, i))
+        result = TestBit(freeRamFrames, i);
+        if (result)
         {
-            if (i == 0 || !TestBit(freeRamFrames, i-1))
+            result = TestBit(freeRamFrames, i - 1);
+            if (i == 0 || !result)
                 first = i; /* set first free in an interval */
             if (i - first + 1 >= np)
             {
@@ -171,6 +187,7 @@ getppages(unsigned long npages, int kmem)
         }
         if (paddr == 0 && kmem)
         {
+            print_freeRamFrames();
             panic("No contiguous %ld free ram frames for kernel allocation", npages);
         }
         /* get physical and virtual address of victmim */
@@ -213,6 +230,7 @@ int freeppages(paddr_t addr, long first_page)
     {
         SetBit(freeRamFrames, i);
     }
+    // print_freeRamFrames();
 
     spinlock_release(&freemem_lock);
 
