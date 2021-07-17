@@ -99,7 +99,6 @@ static void entry_list_init(int maxN)
 
     swap_list = kmalloc(sizeof(struct swap_entry));
     swap_list->next = free_list_tail;
-    kprintf("TAIL: %p\n", free_list_tail);
     swap_list->previous = NULL;
 
     for (i = 0; i < maxN; i++)
