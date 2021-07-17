@@ -30,7 +30,7 @@
 #ifndef _SYSCALL_H_
 #define _SYSCALL_H_
 
-
+#include "opt-fork.h"
 #include <cdefs.h> /* for __DEAD */
 #include <types.h>
 #include "opt-paging.h"
@@ -75,6 +75,9 @@ int file_seek(struct openfile *of, off_t offset, int whence, int *errcode);
 bool filedes_is_seekable(struct openfile *of);
 int sys_waitpid(pid_t pid, userptr_t statusp, int options);
 pid_t sys_getpid(void);
+#if OPT_FORK
+int sys_fork(struct trapframe *ctf, pid_t *retval);
+#endif
 #endif
 int sys_write(int fd, userptr_t buf_ptr, size_t size);
 int sys_read(int fd, userptr_t buf_ptr, size_t size);

@@ -30,7 +30,7 @@
 #ifndef _KERN_FCNTL_H_
 #define _KERN_FCNTL_H_
 
-#include <types.h>
+#include <kern/types.h>
 
 /*
  * Constants for libc's <fcntl.h>.

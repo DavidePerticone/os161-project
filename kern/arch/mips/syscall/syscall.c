@@ -38,8 +38,8 @@
 #include <opt-paging.h>
 #include <opt-waitpid.h>
 #include <synch.h>
-
-
+#include <addrspace.h>
+#include "opt-fork.h"
 
 
 /*
@@ -135,7 +135,6 @@ void syscall(struct trapframe *tf)
 
 #endif
 
-
 #if OPT_PAGING
 	case SYS_open:
 		retval = sys_open((userptr_t)tf->tf_a0,
@@ -154,6 +153,13 @@ void syscall(struct trapframe *tf)
 		else
 			err = 0;
 		break;
+
+
+#if OPT_FORK
+	    case SYS_fork:
+	        err = sys_fork(tf,&retval);
+                break;
+#endif
 
 	case SYS_remove:
 		/* just ignore: do nothing */
@@ -193,12 +199,11 @@ void syscall(struct trapframe *tf)
 		break;
 #endif
 
-
 	default:
 		kprintf("Unknown syscall %d\n", callno);
-		if(callno == 3){
+		if (callno == 3)
+		{
 			kprintf("Unknown syscall %d\n", callno);
-
 		}
 		err = ENOSYS;
 		break;
@@ -242,7 +247,33 @@ void syscall(struct trapframe *tf)
  *
  * Thus, you can trash it and do things another way if you prefer.
  */
-void enter_forked_process(struct trapframe *tf)
+/*
+ * Enter user mode for a newly forked process.
+ *
+ * This function is provided as a reminder. You need to write
+ * both it and the code that calls it.
+ *
+ * Thus, you can trash it and do things another way if you prefer.
+ */
+void
+enter_forked_process(struct trapframe *tf)
 {
+#if OPT_FORK
+	// Duplicate frame so it's on stack
+	struct trapframe forkedTf = *tf; // copy trap frame onto kernel stack
+
+	forkedTf.tf_v0 = 0; // return value is 0
+        forkedTf.tf_a3 = 0; // return with success
+
+	forkedTf.tf_epc += 4; // return to next instruction
+	
+	as_activate();
+
+
+	mips_usermode(&forkedTf);
+	
+#else
 	(void)tf;
+#endif
+
 }
