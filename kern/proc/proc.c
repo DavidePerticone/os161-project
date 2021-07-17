@@ -335,6 +335,7 @@ proc_create_runprogram(const char *name)
 		VOP_INCREF(curproc->p_cwd);
 		newproc->p_cwd = curproc->p_cwd;
 	}
+
 	spinlock_release(&curproc->p_lock);
 
 	return newproc;

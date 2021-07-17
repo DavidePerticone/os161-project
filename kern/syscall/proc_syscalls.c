@@ -7,6 +7,7 @@
 
 #include <types.h>
 #include <kern/unistd.h>
+#include <kern/errno.h>
 #include <clock.h>
 #include <copyinout.h>
 #include <syscall.h>
@@ -18,6 +19,8 @@
 #include <current.h>
 #include <swapfile.h>
 #include <opt-waitpid.h>
+#include "opt-fork.h"
+#include <mips/trapframe.h>
 
 #define PRINT_TABLES 0
 
@@ -88,3 +91,64 @@ pid_t sys_getpid(void)
   return -1;
 #endif
 }
+
+
+#if OPT_FORK
+static void
+call_enter_forked_process(void *tfv, unsigned long dummy) {
+  struct trapframe *tf = (struct trapframe *)tfv;
+  (void)dummy;
+  enter_forked_process(tf); 
+ 
+  panic("enter_forked_process returned (should not happen)\n");
+}
+
+int sys_fork(struct trapframe *ctf, pid_t *retval) {
+  struct trapframe *tf_child;
+  struct proc *newp;
+  int result;
+
+  KASSERT(curproc != NULL);
+
+  newp = proc_create_runprogram(curproc->p_name);
+  if (newp == NULL) {
+    return ENOMEM;
+  }
+
+  newp->p_eh=curproc->p_eh;
+
+  /* done here as we need to duplicate the address space 
+     of thbe current process */
+  as_copy(curproc->p_addrspace, &(newp->p_addrspace), curproc->p_pid);
+  if(newp->p_addrspace == NULL){
+    proc_destroy(newp); 
+    return ENOMEM; 
+  }
+
+  /* we need a copy of the parent's trapframe */
+  tf_child = kmalloc(sizeof(struct trapframe));
+  if(tf_child == NULL){
+    proc_destroy(newp);
+    return ENOMEM; 
+  }
+  memcpy(tf_child, ctf, sizeof(struct trapframe));
+
+  /* TO BE DONE: linking parent/child, so that child terminated 
+     on parent exit */
+
+  result = thread_fork(
+		 curthread->t_name, newp,
+		 call_enter_forked_process, 
+		 (void *)tf_child, (unsigned long)0/*unused*/);
+
+  if (result){
+    proc_destroy(newp);
+    kfree(tf_child);
+    return ENOMEM;
+  }
+
+  *retval = newp->p_pid;
+
+  return 0;
+}
+#endif

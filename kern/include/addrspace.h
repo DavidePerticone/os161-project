@@ -110,7 +110,7 @@ struct addrspace
  */
 
 struct addrspace *as_create(void);
-int as_copy(struct addrspace *src, struct addrspace **ret);
+int as_copy(struct addrspace *src, struct addrspace **ret, pid_t pid);
 void as_activate(void);
 #if OPT_TLB
 void as_deactivate(pid_t pid);

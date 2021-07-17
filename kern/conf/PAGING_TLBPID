@@ -35,3 +35,4 @@ options paging          # Enables paging VM
 options waitpid         # Adds pid to proc structure
 options synch           #enables locks and cvs
 options tlb
+options fork

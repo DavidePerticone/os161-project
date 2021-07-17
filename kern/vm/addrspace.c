@@ -167,9 +167,10 @@ struct addrspace *as_create(void)
   return as;
 }
 
-int as_copy(struct addrspace *old, struct addrspace **ret)
+int as_copy(struct addrspace *old, struct addrspace **ret, pid_t pid)
 {
   struct addrspace *newas;
+  int i, result;
 
   newas = as_create();
   if (newas == NULL)
@@ -187,6 +188,12 @@ int as_copy(struct addrspace *old, struct addrspace **ret)
   newas->as_npages1 = old->as_npages1;
   newas->as_vbase2 = old->as_vbase2;
   newas->as_npages2 = old->as_npages2;
+
+ /* for(i=0; i<newas->as_npages1; i++){
+     result=ipt_lookup(pid, newas->as_vbase1+i*PAGE_SIZE);
+  }*/
+ (void)pid;
+(void)i;(void)result;
 
   *ret = newas;
   return 0;
