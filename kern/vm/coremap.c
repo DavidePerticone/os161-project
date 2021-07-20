@@ -20,6 +20,7 @@
 #include <item.h>
 #include "opt-paging.h"
 
+//TO DO set length bitmatp
 
 static void SetBit(int *A, int k)
 {
@@ -62,7 +63,7 @@ int init_freeRamFrames(int ramFrames)
 {
     int i;
     nRamFrames = ramFrames;
-    freeRamFrames = kmalloc(sizeof(int) * nRamFrames / 32 == 0 ? nRamFrames / 32 : nRamFrames / 32 + 1);
+    freeRamFrames = kmalloc(sizeof(int) * nRamFrames);
     if (freeRamFrames == NULL)
         return 1;
 
@@ -167,9 +168,8 @@ getppages(unsigned long npages, int kmem)
         paddr = ram_stealmem(npages);
         spinlock_release(&stealmem_lock);
     }
-    else
-    {
-    }
+
+    /* save length allocated */
     if (paddr != 0 && isTableActive())
     {
         spinlock_acquire(&freemem_lock);
@@ -177,21 +177,30 @@ getppages(unsigned long npages, int kmem)
         spinlock_release(&freemem_lock);
     }
 
+    /* If neither getfreeppages and ram_stealmem do no return pages, swap out a page */
     if (paddr == 0 && isTableActive())
     {
         spinlock_acquire(&freemem_lock);
-        /* we can only get one page at a time, otherwise in case of swap problems occur */
+        /* we can only get one page at a time with swapping, otherwise in case of swap problems occur */
         if (!kmem)
         {
             KASSERT(npages == 1);
+            pid_victim = 0;
         }
-        if (paddr == 0 && kmem && npages!=1)
+        else
         {
-            print_freeRamFrames();
+            pid_victim = 1;
+        }
+        /* cannot swap contiguous pages, so in case of kernel, panic */
+        if (paddr == 0 && kmem && npages != 1)
+        {
             panic("No contiguous %ld free ram frames for kernel allocation", npages);
         }
-        /* get physical and virtual address of victmim */
-        paddr = get_victim(&vaddr, &pid_victim);
+        /* get physical and virtual address of victim */
+        if (!kmem)
+        {
+            paddr = get_victim(&vaddr, &pid_victim);
+        }
         /* no victim found */
         if (paddr == 0)
         {
@@ -201,9 +210,9 @@ getppages(unsigned long npages, int kmem)
         as_victim = pid_getas(pid_victim);
         /* get in which segment the page is */
         victim_segment = address_segment(vaddr, as_victim);
-        /* swap page out */
         spinlock_release(&freemem_lock);
-        result = swap_out(paddr, vaddr, victim_segment);
+        /* swap page out */
+        result = swap_out(paddr, vaddr, victim_segment, pid_victim);
         if (result)
         {
             return 0;
@@ -211,7 +220,9 @@ getppages(unsigned long npages, int kmem)
     }
 
     KASSERT(paddr != 0);
+    /* zero fill the allocated page(s) */
     as_zero_region(paddr, npages);
+
     return paddr;
 }
 

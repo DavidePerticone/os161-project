@@ -12,6 +12,7 @@
 #include <segments.h>
 #include <vfs.h>
 #include <instrumentation.h>
+#include <pt.h>
 /*
  * Load a segment at virtual address VADDR. The segment in memory
  * extends from VADDR up to (but not including) VADDR+MEMSIZE. The
@@ -31,11 +32,17 @@ static int
 load_segment(struct addrspace *as, struct vnode *v,
 			 off_t offset, vaddr_t vaddr,
 			 size_t memsize, size_t filesize,
-			 int is_executable)
+			 int is_executable, paddr_t paddr)
 {
+
 	struct iovec iov;
 	struct uio u;
 	int result;
+	paddr_t addr;
+
+	KASSERT(curproc->p_addrspace == as);
+	(void) is_executable;
+
 
 	if (filesize > memsize)
 	{
@@ -46,15 +53,21 @@ load_segment(struct addrspace *as, struct vnode *v,
 	DEBUG(DB_EXEC, "ELF: Loading %lu bytes to 0x%lx\n",
 		  (unsigned long)filesize, (unsigned long)vaddr);
 
-	iov.iov_ubase = (userptr_t)vaddr;
+	addr=vaddr-(vaddr & PAGE_FRAME)+paddr;
+
+	iov.iov_ubase =(userptr_t) PADDR_TO_KVADDR(addr);
 	iov.iov_len = memsize; // length of the memory space
 	u.uio_iov = &iov;
 	u.uio_iovcnt = 1;
 	u.uio_resid = filesize; // amount to read from the file
 	u.uio_offset = offset;
-	u.uio_segflg = is_executable ? UIO_USERISPACE : UIO_USERSPACE;
+	u.uio_segflg = UIO_SYSSPACE;
 	u.uio_rw = UIO_READ;
-	u.uio_space = as;
+	u.uio_space = NULL;
+
+
+
+ 
 
 	result = VOP_READ(v, &u);
 	if (result)
@@ -99,7 +112,7 @@ load_segment(struct addrspace *as, struct vnode *v,
 	return result;
 }
 
-int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment)
+int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment, paddr_t paddr)
 {
 
 	int bytes_toread_from_file;
@@ -213,10 +226,17 @@ int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment)
 		/* if we want to read the first page */
 		if (page_offset_from_segbase == 0)
 		{
-			/* if we are in the first page, we have to read starting from the first used vaddr */
 			vaddr = ph.p_vaddr;
 			/* amount of bytes to read */
-			bytes_toread_from_file = ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
+
+				if (ph.p_vaddr + ph.p_filesz < (ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE)
+			{
+				bytes_toread_from_file = ph.p_filesz;
+			}
+			else
+			{
+				bytes_toread_from_file = ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
+			}
 		}
 
 		/*
@@ -238,7 +258,7 @@ int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment)
 
 		result = load_segment(curproc->p_addrspace, v, ph.p_offset + page_offset_from_segbase, vaddr,
 							  PAGE_SIZE, bytes_toread_from_file,
-							  ph.p_flags & PF_X);
+							  ph.p_flags & PF_X, paddr);
 	}
 
 	if (result)

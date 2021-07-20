@@ -4,7 +4,6 @@
 #include <vm.h>
 
 
-#define LOAD_MASK 0x80000000
 /* Vaddr space can have at most 4GB/PAGE_SIZE entries, 
    that is the number of frames in the system */
 
@@ -24,9 +23,7 @@ vaddr_t vaddr;
 void print_ipt(void);
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid);
 int init_victim(int first_avail_paddress);
-int isLoading(int entry);
 int create_ipt(void);
-void setLoading(int set, int entry);
 
 /* Given a pid and vaddr, get the physical frame, if in memory */
 paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr);
@@ -35,5 +32,6 @@ int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr);
 int ipt_kadd(pid_t pid, paddr_t paddr, vaddr_t vaddr);
 int hash_delete(pid_t pid, vaddr_t vaddr);
 void free_ipt_process(pid_t pid);
+void hash_print(void);
 
 #endif

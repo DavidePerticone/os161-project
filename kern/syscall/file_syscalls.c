@@ -337,10 +337,13 @@ int sys_close(int fd)
 /*
  * simple file system calls for write/read
  */
+
+static struct spinlock sp = SPINLOCK_INITIALIZER;
 int sys_write(int fd, userptr_t buf_ptr, size_t size)
 {
   int i;
   char *p = (char *)buf_ptr;
+  
 
   if (fd != STDOUT_FILENO && fd != STDERR_FILENO)
   {
@@ -351,12 +354,12 @@ int sys_write(int fd, userptr_t buf_ptr, size_t size)
     return -1;
 #endif
   }
-
+  spinlock_acquire(&sp);
   for (i = 0; i < (int)size; i++)
   {
     putch(p[i]);
   }
-
+  spinlock_release(&sp);
   return (int)size;
 }
 

@@ -50,7 +50,10 @@
 #include <vnode.h>
 #include <opt-waitpid.h>
 #include <synch.h>
-#include "opt-paging.h" 
+#include "opt-paging.h"
+#include <limits.h>
+#include <swapfile.h>
+#include <pt.h>
 
 #if OPT_WAITPID
 
@@ -75,24 +78,25 @@ struct proc *kproc;
  * Terminate support for pid/waitpid.
  */
 static void
-proc_end_waitpid(struct proc *proc) {
+proc_end_waitpid(struct proc *proc)
+{
 #if OPT_WAITPID
-  /* remove the process from the table */
-  int i;
-  spinlock_acquire(&processTable.lk);
-  i = proc->p_pid;
-  KASSERT(i>0 && i<=MAX_PROC);
-  processTable.proc[i] = NULL;
-  spinlock_release(&processTable.lk);
+	/* remove the process from the table */
+	int i;
+	spinlock_acquire(&processTable.lk);
+	i = proc->p_pid;
+	KASSERT(i > 0 && i <= MAX_PROC);
+	processTable.proc[i] = NULL;
+	spinlock_release(&processTable.lk);
 
 #if USE_SEMAPHORE_FOR_WAITPID
-  sem_destroy(proc->p_sem);
+	sem_destroy(proc->p_sem);
 #else
-  cv_destroy(proc->p_cv);
-  lock_destroy(proc->p_wlock);
+	cv_destroy(proc->p_cv);
+	lock_destroy(proc->p_wlock);
 #endif
 #else
-  (void)proc;
+	(void)proc;
 #endif
 }
 
@@ -109,7 +113,7 @@ proc_init_waitpid(struct proc *proc, const char *name)
 	spinlock_acquire(&processTable.lk);
 	i = processTable.last_i + 1;
 	proc->p_pid = 0;
-	if (i > MAX_PROC)
+	if (i >= MAX_PROC)
 		i = 1;
 	while (i != processTable.last_i)
 	{
@@ -121,7 +125,7 @@ proc_init_waitpid(struct proc *proc, const char *name)
 			break;
 		}
 		i++;
-		if (i > MAX_PROC)
+		if (i >= MAX_PROC)
 			i = 1;
 	}
 	spinlock_release(&processTable.lk);
@@ -144,6 +148,7 @@ proc_init_waitpid(struct proc *proc, const char *name)
 
 struct addrspace *pid_getas(pid_t pid)
 {
+	KASSERT( pid == curproc->p_pid);
 	KASSERT(pid > 0 && pid < MAX_PROC + 1);
 	return processTable.proc[pid]->p_addrspace;
 }
@@ -178,6 +183,9 @@ proc_create(const char *name)
 
 	/* VFS fields */
 	proc->p_cwd = NULL;
+
+	/* status init */
+	proc->finish = 0;
 
 	proc_init_waitpid(proc, name);
 
@@ -256,19 +264,20 @@ void proc_destroy(struct proc *proc)
 		 * random other process while it's still running...
 		 */
 		struct addrspace *as;
-		#if OPT_TLB
+#if OPT_TLB
 		as_deactivate(proc->p_pid);
-		#endif
+#endif
 		if (proc == curproc)
-		{	
-			#if !OPT_TLB
+		{
+#if !OPT_TLB
 			as_deactivate();
-			#endif
-			as = proc_setas(NULL);
+#endif
 			
+			as = proc_setas(NULL);
 		}
 		else
 		{
+			
 			as = proc->p_addrspace;
 			proc->p_addrspace = NULL;
 		}
@@ -279,7 +288,7 @@ void proc_destroy(struct proc *proc)
 	spinlock_cleanup(&proc->p_lock);
 
 	proc_end_waitpid(proc);
-
+	
 	kfree(proc->p_name);
 	kfree(proc);
 }
@@ -438,44 +447,44 @@ proc_setas(struct addrspace *newas)
 	return oldas;
 }
 
-
-int 
-proc_wait(struct proc *proc)
+int proc_wait(struct proc *proc)
 {
 #if OPT_WAITPID
-        int return_status;
-        /* NULL and kernel proc forbidden */
+	int return_status;
+	/* NULL and kernel proc forbidden */
 	KASSERT(proc != NULL);
 	KASSERT(proc != kproc);
 
-        /* wait on semaphore or condition variable */ 
+	/* wait on semaphore or condition variable */
 
-        lock_acquire(proc->p_wlock);
-        cv_wait(proc->p_cv, proc->p_wlock);
-        lock_release(proc->p_wlock);
+	lock_acquire(proc->p_wlock);
+	if (proc->finish == 0)
+	{
+		cv_wait(proc->p_cv, proc->p_wlock);
+	}
+	lock_release(proc->p_wlock);
 
-        return_status = proc->p_status;
-        proc_destroy(proc);
-        return return_status;
+	return_status = proc->p_status;
+	proc_destroy(proc);
+	return return_status;
 #else
-        /* this doesn't synchronize */ 
-        (void)proc;
-        return 0;
+	/* this doesn't synchronize */
+	(void)proc;
+	return 0;
 #endif
 }
 
-
-
 struct proc *
-proc_search_pid(pid_t pid) {
+proc_search_pid(pid_t pid)
+{
 #if OPT_WAITPID
-  struct proc *p;
-  KASSERT(pid>=0&&pid<MAX_PROC);
-  p = processTable.proc[pid];
-  KASSERT(p->p_pid==pid);
-  return p;
+	struct proc *p;
+	KASSERT(pid >= 0 && pid < MAX_PROC);
+	p = processTable.proc[pid];
+	KASSERT(p->p_pid == pid);
+	return p;
 #else
-  (void)pid;
-  return NULL;
+	(void)pid;
+	return NULL;
 #endif
 }

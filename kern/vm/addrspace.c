@@ -179,6 +179,8 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
     return ENOMEM;
   }
 
+  /* Copy the address space */
+
   KASSERT(old != NULL);
   KASSERT(old->as_vbase1 != 0);
   KASSERT(old->as_npages1 > 0);
@@ -190,47 +192,48 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
   newas->as_vbase2 = old->as_vbase2;
   newas->as_npages2 = old->as_npages2;
 
-  /* look in the IPT to see if there are pages to copy */
-  paddr = as_prepare_load(1);
+  /* 
+   * Look in the IPT to see if there are pages to copy 
+   * but do not copy code pages -> they can be loaded from ELF
+   */
 
-
-    for (i = 0; i < (int)newas->as_npages2; i++)
+  /* Looking for data pages */
+  for (i = 0; i < (int)newas->as_npages2; i++)
   {
     result = ipt_lookup(old_pid, newas->as_vbase2 + i * PAGE_SIZE);
     if (result)
     {
-      /* for each page to copy */
-
+      paddr = as_prepare_load(1);
       memmove((void *)PADDR_TO_KVADDR(paddr),
               (const void *)PADDR_TO_KVADDR(result),
               PAGE_SIZE);
       ipt_add(new_pid, paddr, newas->as_vbase2 + i * PAGE_SIZE);
-      paddr = as_prepare_load(1);
     }
   }
 
-      result=1;
-      for (i = 0; result; i++)
+  /* 
+   * Look for stack pages by starting by the first (bottom) page of the stack.
+   * When we do not find a page, stop searching.
+   */
+
+    result = 1;
+  for (i = 0; result; i++)
   {
     result = ipt_lookup(old_pid, 0x7FFFF000 - i * PAGE_SIZE);
     if (result)
     {
+      paddr = as_prepare_load(1);
       /* for each page to copy */
-
       memmove((void *)PADDR_TO_KVADDR(paddr),
               (const void *)PADDR_TO_KVADDR(result),
               PAGE_SIZE);
       ipt_add(new_pid, paddr, 0x7FFFF000 - i * PAGE_SIZE);
-      paddr = as_prepare_load(1);
     }
   }
 
-  
-  
-  freeppages(paddr, paddr / PAGE_SIZE);
-  //print_ipt();
+  /* Duplicate pages that are swapped out */
 
-
+  duplicate_swap_pages(old_pid, new_pid);
 
   *ret = newas;
   return 0;

@@ -48,6 +48,8 @@
 #include "opt-paging.h"
 #include "opt-waitpid.h"
 #include <instrumentation.h>
+#include <current.h>
+#include <syscall.h>
 /*
  * In-kernel menu and command dispatcher.
  */
@@ -95,6 +97,10 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	{
 		kprintf("Running program %s failed: %s\n", args[0],
 				strerror(result));
+		
+			sys__exit(-1);
+		
+		
 		return;
 	}
 

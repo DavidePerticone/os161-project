@@ -804,6 +804,7 @@ thread_exit(void)
 
 	/* Check the stack guard band. */
 	thread_checkstack(cur);
+	
 
 	/* Interrupts off on this processor */
         splhigh();

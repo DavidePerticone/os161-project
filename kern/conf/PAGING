@@ -33,5 +33,5 @@ options sfs			    # Always use the file system
 
 options paging          # Enables paging VM
 options waitpid         # Adds pid to proc structure
-options synch           #enables locks and cvs
-options fork
+options synch           # Enables locks and cvs
+options fork            # Enables Fork syscall

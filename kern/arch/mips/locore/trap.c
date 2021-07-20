@@ -41,7 +41,8 @@
 #include <syscall.h>
 #include <opt-paging.h>
 #include <kern/errno.h>
-
+#include <pt.h>
+#include <swapfile.h>
 
 /* in exception-*.S */
 extern __DEAD void asm_usermode(struct trapframe *tf);
@@ -113,6 +114,8 @@ kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
 	/*
 	 * You will probably want to change this.
 	 */
+
+	print_ipt();
 
 	kprintf("Fatal user mode trap %u sig %d (%s, epc 0x%x, vaddr 0x%x)\n",
 		code, sig, trapcodenames[code], epc, vaddr);

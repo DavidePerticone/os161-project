@@ -3,6 +3,10 @@
 
 #include <types.h>
 #include <opt-list.h>
+
+#define MAX_SIZE 1024 * 1024 * 9
+#define ENTRIES (MAX_SIZE / 4096)
+
 struct swap_entry
 {
 
@@ -16,12 +20,12 @@ struct swap_entry
 };
 
 void init_swapfile(void);
-int swap_in(vaddr_t page);
-int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim);
+int swap_in(vaddr_t page, paddr_t paddr);
+int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim, pid_t pid_victim);
 
 void free_swap_table(pid_t pid);
 void print_swap(void);
-
+void duplicate_swap_pages(pid_t old_pid, pid_t new_pid);
 
 #endif
 
