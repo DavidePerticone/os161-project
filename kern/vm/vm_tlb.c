@@ -31,6 +31,8 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr, pid_t pid)
 	int i;
 	int victim;
 	int spl;
+		uint32_t ehi, elo;
+
 	/* Disable interrupts on this CPU while frobbing the TLB. */
 	spl = splhigh();
 
