@@ -21,6 +21,7 @@
 #include <opt-waitpid.h>
 #include "opt-fork.h"
 #include <mips/trapframe.h>
+#include <coremap.h>
 
 #define PRINT_TABLES 0
 
@@ -30,16 +31,22 @@
 void sys__exit(int status)
 {
 
-    pid_t pid = curproc->p_pid;
-
+ 
 
 #if OPT_WAITPID
   struct proc *p = curproc;
+  pid_t pid = p->p_pid;
+   /* thread exits. proc data structure will be lost */
+  free_ipt_process(pid);
+ // hash_print();
+  /* free swap_table entries when process exits */
+  free_swap_table(pid);
   p->p_status = status & 0xff; /* just lower 8 bits returned */
   proc_remthread(curthread);
   lock_acquire(p->p_wlock);
   cv_signal(p->p_cv, p->p_wlock);
   lock_release(p->p_wlock);
+  p->finish = 1;
 
 #else
   /* get address space of current process and destroy */
@@ -47,16 +54,20 @@ void sys__exit(int status)
   as_destroy(as);
 #endif
 
-  /* thread exits. proc data structure will be lost */
-  free_ipt_process(pid);
-  /* free swap_table entries when process exits */
-  free_swap_table(pid);
-#if PRINT_TABLES
-  print_ipt();
-  print_swap();
-#endif
 
+  #if PRINT_TABLES
+  print_ipt();
+  print_freeRamFrames();
+  hash_print();
+ // print_swap();
+#endif
   thread_exit();
+  
+
+
+
+
+
 
   panic("thread_exit returned (should not happen)\n");
   (void)status; // TODO: status handling
@@ -66,6 +77,7 @@ int sys_waitpid(pid_t pid, userptr_t statusp, int options)
 {
 #if OPT_WAITPID
   struct proc *p = proc_search_pid(pid);
+  KASSERT(p != NULL);
   int s;
   (void)options; /* not handled */
   if (p == NULL)
@@ -92,18 +104,19 @@ pid_t sys_getpid(void)
 #endif
 }
 
-
 #if OPT_FORK
 static void
-call_enter_forked_process(void *tfv, unsigned long dummy) {
+call_enter_forked_process(void *tfv, unsigned long dummy)
+{
   struct trapframe *tf = (struct trapframe *)tfv;
   (void)dummy;
-  enter_forked_process(tf); 
- 
+  enter_forked_process(tf);
+
   panic("enter_forked_process returned (should not happen)\n");
 }
 
-int sys_fork(struct trapframe *ctf, pid_t *retval) {
+int sys_fork(struct trapframe *ctf, pid_t *retval)
+{
   struct trapframe *tf_child;
   struct proc *newp;
   int result;
@@ -111,25 +124,28 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
   KASSERT(curproc != NULL);
 
   newp = proc_create_runprogram(curproc->p_name);
-  if (newp == NULL) {
+  if (newp == NULL)
+  {
     return ENOMEM;
   }
 
-  newp->p_eh=curproc->p_eh;
+  newp->p_eh = curproc->p_eh;
 
   /* done here as we need to duplicate the address space 
      of thbe current process */
-  as_copy(curproc->p_addrspace, &(newp->p_addrspace), curproc->p_pid);
-  if(newp->p_addrspace == NULL){
-    proc_destroy(newp); 
-    return ENOMEM; 
+  as_copy(curproc->p_addrspace, &(newp->p_addrspace), curproc->p_pid, newp->p_pid);
+  if (newp->p_addrspace == NULL)
+  {
+    proc_destroy(newp);
+    return ENOMEM;
   }
 
   /* we need a copy of the parent's trapframe */
   tf_child = kmalloc(sizeof(struct trapframe));
-  if(tf_child == NULL){
+  if (tf_child == NULL)
+  {
     proc_destroy(newp);
-    return ENOMEM; 
+    return ENOMEM;
   }
   memcpy(tf_child, ctf, sizeof(struct trapframe));
 
@@ -137,11 +153,12 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
      on parent exit */
 
   result = thread_fork(
-		 curthread->t_name, newp,
-		 call_enter_forked_process, 
-		 (void *)tf_child, (unsigned long)0/*unused*/);
+      curthread->t_name, newp,
+      call_enter_forked_process,
+      (void *)tf_child, (unsigned long)0 /*unused*/);
 
-  if (result){
+  if (result)
+  {
     proc_destroy(newp);
     kfree(tf_child);
     return ENOMEM;

@@ -41,7 +41,7 @@
 #include <err.h>
 
 /* Larger than physical memory */
-#define SIZE  (1024)
+#define SIZE  (102400*5)
 
 
 /*

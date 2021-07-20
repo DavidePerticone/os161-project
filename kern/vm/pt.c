@@ -29,47 +29,23 @@ static int first_paddr;
 
 static ST ipt_hash = NULL;
 
-void setLoading(int set, int entry)
-{
-
-    KASSERT(set == 0 || set == 1);
-    KASSERT(entry > 0 && entry < nRamFrames);
-    if (set)
-    {
-        ipt[entry].vaddr |= LOAD_MASK;
-    }
-    else
-    {
-
-        ipt[entry].vaddr &= ~LOAD_MASK;
-    }
-}
-
-int isLoading(int entry)
-{
-    KASSERT(entry > 0 && entry < nRamFrames);
-    /*Protect the read of an entry, avoid other threads changing the entry while the read in on*/
-    spinlock_acquire(&ipt_lock);
-    int val = ipt[entry].vaddr;
-    spinlock_release(&ipt_lock);
-    /*Get the MSB of the entry, if set return 1 else 0. This tells if the entry is still loading or not*/
-    return (val & LOAD_MASK) == LOAD_MASK;
-}
-
 /*DEBUG function used to check the behavior of the page table*/
 void print_ipt(void)
 {
     int i;
-    spinlock_acquire(&ipt_lock);
+    //  spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
-
+    kprintf("PID: %d\n", curproc->p_pid);
     kprintf("<< IPT >>\n");
 
     for (i = 0; i < nRamFrames; i++)
     {
-        kprintf("%d -   %d   - %d\n", i, ipt[i].pid, ipt[i].vaddr / PAGE_SIZE);
+        if (ipt[i].pid != -1)
+        {
+            kprintf("%d -   %d   - %d\n", i, ipt[i].pid, ipt[i].vaddr / PAGE_SIZE);
+        }
     }
-    spinlock_release(&ipt_lock);
+    //   spinlock_release(&ipt_lock);
 }
 
 int init_victim(int first_avail_paddress)
@@ -82,45 +58,54 @@ int init_victim(int first_avail_paddress)
 
     return victim;
 }
-
+// TO DO implement per process round robin, not global
 /* return the selected victim */
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
 {
-    int tlb_entry;
+    int tlb_entry, spl;
 
     spinlock_acquire(&ipt_lock);
     KASSERT(ipt_active);
 
     /* for each ram frames */
-    for (int i = 0; i < nRamFrames; i++)
+    for (int i = last_victim, j = 0; j < nRamFrames; j++, i++)
     {
+        if (i == nRamFrames)
+        {
+            last_victim = -1;
+            i = 0;
+        }
         /* 
          *Till a ram frame is free (pid == -1) and its position is greater 
          *than the previous victim .
          *This guarantees that pages allocated to kernel are not touched and implements a 
          *round robin policy.
          */
-        if (ipt[i].pid != -2 && i > last_victim && first_paddr <= i * PAGE_SIZE)
+        if ((ipt[i].pid == curproc->p_pid))
         {
             /* update last victim: if last frame is selected, start again from the beginning */
-            last_victim = i == nRamFrames - 1 ? 0 : i;
+            last_victim = i + 1;
             *vaddr = ipt[i].vaddr;
             *pid = ipt[i].pid;
-            /* free ipt entry */
-            ipt[i].pid = -1;
+            /* delete entry from hash */
+            hash_delete(*pid, *vaddr);
+
+            /* free ipt entry: set it as kernel page so that no one can select it as a free while loading it*/
+            ipt[i].pid = -2;
             /* free tlb entry */
-            #if OPT_TLB
+            spl = splhigh();
+#if OPT_TLB
             tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | *pid << 6, 0);
-            #else
+#else
             tlb_entry = tlb_probe(ipt[i].vaddr, 0);
-            #endif
+#endif
             /* if victim page is in the tlb, invalidate the entry */
             if (tlb_entry >= 0)
             {
                 tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
             }
-            /* delete entry from hash */
-            hash_delete(*pid, *vaddr);
+            splx(spl);
+
             /* return paddr of victim */
             spinlock_release(&ipt_lock);
 
@@ -137,7 +122,6 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
  * One entry for each frame in the ram.
  * Initialized pid of each entry to -1 to signal it is free
  */
-
 
 int create_ipt(void)
 {
@@ -164,7 +148,6 @@ int create_ipt(void)
 }
 
 /* Given a pid and vaddr, get the physical frame, if in memory */
-/* TODO: Speed up linear search */
 
 paddr_t ipt_lookup(pid_t pid, vaddr_t vaddr)
 {
@@ -210,7 +193,8 @@ int ipt_add(pid_t pid, paddr_t paddr, vaddr_t vaddr)
     spinlock_acquire(&ipt_lock);
     if (ipt_active)
     {
-        item = ITEMscan(pid, (vaddr & ~LOAD_MASK), frame_index);
+
+        item = ITEMscan(pid, vaddr, frame_index);
         KASSERT(ipt_active);
         ipt[frame_index].pid = pid;
         ipt[frame_index].vaddr = vaddr;
@@ -277,4 +261,9 @@ int hash_delete(pid_t pid, vaddr_t vaddr)
     STdelete(ipt_hash, pid, vaddr);
 
     return 0;
+}
+
+void hash_print(void)
+{
+    STdisplay(ipt_hash);
 }

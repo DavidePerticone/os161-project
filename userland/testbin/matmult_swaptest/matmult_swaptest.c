@@ -42,7 +42,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#define Dim 	256	/* sum total of the arrays doesn't fit in
+#define Dim 	800	/* sum total of the arrays doesn't fit in
 			 * physical memory
 			 */
 

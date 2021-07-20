@@ -80,6 +80,7 @@ struct proc
 	pid_t p_pid;  /* process pid */
 	struct cv *p_cv;
 	struct lock *p_wlock;
+	int finish;
 #endif
 
 #if OPT_PAGING

@@ -11,7 +11,7 @@
 #include <types.h>
 #include <lib.h>
 #include <opt-list.h>
-
+#include <pt.h>
 /*
  * Hash table using linear chainig 
  */
@@ -278,7 +278,10 @@ link NEW(Item item, link next)
             free_link = 0;
         }
         if (j >= n_entries)
-        {
+        {            
+            for(int i=0; i<n_entries; i++){
+                kprintf("Index: %d addr %d pid %d\n", link_list[i].item.index, link_list[i].item.key.kaddr/PAGE_SIZE, link_list[i].item.key.kpid);
+            }
             panic("No free entry in hash table\n");
         }
     }
@@ -411,8 +414,7 @@ void STdelete(ST st, pid_t pid, vaddr_t addr)
     k.kaddr = addr;
     int i = hashU(k, st->M);
     st->heads[i] = deleteR(st->heads[i], k);
-
-    return;
+            return;
 }
 
 void visitR(link h, link z)

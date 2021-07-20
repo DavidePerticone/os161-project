@@ -15,9 +15,11 @@
 #include <kern/errno.h>
 #include <instrumentation.h>
 #include <opt-list.h>
+#include <addrspace.h>
+#include <coremap.h>
 
-#define MAX_SIZE 1024 * 1024 * 9
-#define ENTRIES (MAX_SIZE / 4096)
+#define DUMPOUT 0
+#define DUMPIN 0
 
 #if OPT_LIST
 
@@ -35,7 +37,6 @@ static void add_free_entry(struct swap_entry *fentry)
     fentry->next = free_list_head->next;
     free_list_head->next = fentry;
 }
-
 
 static struct swap_entry *search_swap_list(pid_t pid, vaddr_t vaddr)
 {
@@ -56,6 +57,36 @@ static struct swap_entry *search_swap_list(pid_t pid, vaddr_t vaddr)
         }
 
         tmp = tmp->next;
+    }
+
+    panic("Should not get here while searching in swap list\n");
+}
+
+static struct swap_entry *search_swap_list_pid(pid_t pid, struct swap_entry **tmp)
+{
+    spinlock_acquire(&swap_lock);
+    
+    if (*tmp == NULL)
+    {
+        *tmp = swap_list->next;
+    }
+
+    for (int i = 0; i < ENTRIES; i++)
+    {
+        if (*tmp == free_list_tail)
+        {
+            return NULL;
+            spinlock_release(&swap_lock);
+
+        }
+
+        if ((*tmp)->pid == pid)
+        {
+            spinlock_release(&swap_lock);
+            return *tmp;
+        }
+
+        *tmp = (*tmp)->next;
     }
 
     panic("Should not get here while searching in swap list\n");
@@ -139,13 +170,13 @@ void init_swapfile(void)
 }
 
 static int
-file_read_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
+file_read_paddr(struct vnode *vn, paddr_t buf_ptr, size_t size, off_t offset)
 {
     struct iovec iov;
     struct uio u;
     int result, nread;
 
-    iov.iov_ubase = (userptr_t)(buf_ptr);
+    iov.iov_ubase = (userptr_t)(PADDR_TO_KVADDR(buf_ptr));
     iov.iov_len = size;
 
     u.uio_iov = &iov;
@@ -172,7 +203,7 @@ file_read_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
     return (nread);
 }
 
-int swap_in(vaddr_t page)
+int swap_in(vaddr_t page, paddr_t paddr)
 {
 
     int result;
@@ -191,7 +222,7 @@ int swap_in(vaddr_t page)
         offset = entry->file_offset;
         remove_swap_list(entry);
         spinlock_release(&swap_lock);
-        result = file_read_paddr(v, page, PAGE_SIZE, offset);
+        result = file_read_paddr(v, paddr, PAGE_SIZE, offset);
         KASSERT(result == PAGE_SIZE);
 
         spinlock_acquire(&swap_lock);
@@ -256,25 +287,24 @@ file_write_paddr(struct vnode *vn, paddr_t buf_ptr, size_t size, off_t offset)
  * swap out.
  */
 
-int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
+int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim, pid_t pid_victim)
 {
+
+    int result;
+    struct swap_entry *entry;
 
     /*if the page to swap out is in the segment, do not swap out */
     if (segment_victim == 1)
     {
         return 0;
     }
-    int result;
-    pid_t pid;
-    struct swap_entry *entry;
-
-    pid = curproc->p_pid;
+    KASSERT(curproc->p_pid == pid_victim);
 
     spinlock_acquire(&swap_lock);
 
     entry = get_free_entry();
     entry->page = vaddr;
-    entry->pid = pid;
+    entry->pid = pid_victim;
 
     spinlock_release(&swap_lock);
     result = file_write_paddr(v, paddr, PAGE_SIZE, entry->file_offset);
@@ -290,11 +320,10 @@ int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
     return 0;
 }
 
-
 void free_swap_table(pid_t pid)
 {
 
-    struct swap_entry *tmp=swap_list->next, *next;
+    struct swap_entry *tmp = swap_list->next, *next;
 
     spinlock_acquire(&swap_lock);
 
@@ -316,14 +345,12 @@ void free_swap_table(pid_t pid)
             add_free_entry(tmp);
         }
 
-        tmp=next;
+        tmp = next;
     }
 
     panic("Should not get here while freeing swap list\n");
 
     //  free_recursive(pid, swap_list);
-
-   
 }
 
 static void print_recursive(struct swap_entry *next)
@@ -351,9 +378,48 @@ void print_swap(void)
     spinlock_release(&swap_lock);
 }
 
+void duplicate_swap_pages(pid_t old_pid, pid_t new_pid)
+{
+
+    int result;
+    paddr_t paddr;
+    struct swap_entry *tmp;
+    struct swap_entry *entry;
+    paddr = as_prepare_load(1);
+
+    /* page must be in swap file */
+
+    while (search_swap_list_pid(old_pid, &tmp) != NULL)
+    {
+        spinlock_acquire(&swap_lock);
+
+        entry = get_free_entry();
+
+        spinlock_release(&swap_lock);
+
+        result = file_read_paddr(v, paddr, PAGE_SIZE, tmp->file_offset);
+        if (result != PAGE_SIZE)
+        {
+            panic("Unable to read page from swap file");
+        }
+        result = file_write_paddr(v, paddr, PAGE_SIZE,  tmp->file_offset);
+        if (result != PAGE_SIZE)
+        {
+            panic("Unable to swap page out for fork");
+        }
+        spinlock_acquire(&swap_lock);
+        entry->page = tmp->page;
+        entry->pid = new_pid;
+
+        spinlock_release(&swap_lock);
+
+    }
+    spinlock_release(&swap_lock);
+
+
+}
 
 #else
-
 
 int swap_fd;
 
@@ -361,6 +427,19 @@ static struct swap_entry swap_table[ENTRIES];
 static struct vnode *v = NULL;
 static struct spinlock swap_lock = SPINLOCK_INITIALIZER;
 
+static void print_swap_internal(void)
+{
+
+    kprintf("<< SWAP TABLE >>\n");
+
+    for (int i = 0; i < ENTRIES; i++)
+    {
+        if (swap_table[i].pid != -1)
+        {
+            kprintf("%d -   %d   - %d\n", i, swap_table[i].pid, swap_table[i].page / PAGE_SIZE);
+        }
+    }
+}
 
 /* 
  * Initialize swapfile. If the file does not exists, it is created.
@@ -377,17 +456,16 @@ void init_swapfile(void)
         swap_table[i].pid = -1;
     }
     spinlock_release(&swap_lock);
-
 }
 
 static int
-file_read_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
+file_read_paddr(struct vnode *vn, paddr_t buf_ptr, size_t size, off_t offset)
 {
     struct iovec iov;
     struct uio u;
     int result, nread;
 
-    iov.iov_ubase = (userptr_t)(buf_ptr);
+    iov.iov_ubase = (userptr_t)(PADDR_TO_KVADDR(buf_ptr));
     iov.iov_len = size;
 
     u.uio_iov = &iov;
@@ -414,28 +492,36 @@ file_read_paddr(struct vnode *vn, vaddr_t buf_ptr, size_t size, off_t offset)
     return (nread);
 }
 
-int swap_in(vaddr_t page)
+int swap_in(vaddr_t page, paddr_t paddr)
 {
 
     int result, i;
     pid_t pid;
     pid = curproc->p_pid;
 
+    spinlock_acquire(&swap_lock);
     /* page must be in swap file */
     for (i = 0; i < ENTRIES; i++)
     {
         if (swap_table[i].pid == pid && swap_table[i].page == page)
         {
-            //kprintf("Swapping in\n");
+            spinlock_release(&swap_lock);
+            result = file_read_paddr(v, paddr, PAGE_SIZE, i * PAGE_SIZE);
+
+            spinlock_acquire(&swap_lock);
             swap_table[i].pid = -1;
-            result = file_read_paddr(v, page, PAGE_SIZE, i * PAGE_SIZE);
+#if DUMPIN
+            kprintf("Swapping in PID %d PAGE %d\n", curproc->p_pid, page / PAGE_SIZE);
+#endif
+            spinlock_release(&swap_lock);
+
             KASSERT(result == PAGE_SIZE);
             increase(SWAP_IN_PAGE);
             increase(FAULT_WITH_LOAD);
             return 0;
         }
     }
-
+    spinlock_release(&swap_lock);
     return 1;
 }
 /*
@@ -479,11 +565,6 @@ file_write_paddr(struct vnode *vn, paddr_t buf_ptr, size_t size, off_t offset)
     return (nwrite);
 }
 
-
-
-
-
-
 /*
  * swap_out receives both paddr and vaddr. 
  * paddr is used to actually perform the swap-out (i.e., we give it to the inner function).
@@ -492,47 +573,55 @@ file_write_paddr(struct vnode *vn, paddr_t buf_ptr, size_t size, off_t offset)
  * swap out.
  */
 
-
-int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim)
+int swap_out(paddr_t paddr, vaddr_t vaddr, int segment_victim, pid_t pid_victim)
 {
+
+    int result, i;
+
+    KASSERT(pid_victim != -1);
 
     /*if the page to swap out is in the segment, do not swap out */
     if (segment_victim == 1)
     {
         return 0;
     }
-    int result, i;
-    pid_t pid;
-
-    pid = curproc->p_pid;
 
     spinlock_acquire(&swap_lock);
+    /* iterate though the swap_table to find a free entry */
     for (i = 0; i < ENTRIES; i++)
     {
+        /* if pid of entry is -1, it is free */
         if (swap_table[i].pid == -1)
         {
-            swap_table[i].pid = pid;
-            swap_table[i].page = vaddr;
-            spinlock_release(&swap_lock);
+            /* set pid of entry to -2, so that no one else can select the entry as free */
+            swap_table[i].pid = -2;
 
+#if DUMPOUT
+            kprintf("Start swapping out PID %d PAGE %d\n", pid_victim, vaddr / PAGE_SIZE);
+#endif
+            spinlock_release(&swap_lock);
+            /* actually write on file */
             result = file_write_paddr(v, paddr, PAGE_SIZE, i * PAGE_SIZE);
+            spinlock_acquire(&swap_lock);
             if (result != PAGE_SIZE)
             {
                 panic("Unable to swap page out");
             }
 
             KASSERT(result >= 0);
+
+            swap_table[i].pid = pid_victim;
+            swap_table[i].page = vaddr;
+
+            spinlock_release(&swap_lock);
             increase(SWAP_OUT_PAGE);
             return 0;
         }
     }
     spinlock_release(&swap_lock);
 
-
     panic("Out of swapspace\n");
 }
-
-
 
 void free_swap_table(pid_t pid)
 {
@@ -540,8 +629,10 @@ void free_swap_table(pid_t pid)
 
     KASSERT(pid >= 0);
 
-    for(int i = 0; i < ENTRIES; i++) {
-        if(swap_table[i].pid == pid) {
+    for (int i = 0; i < ENTRIES; i++)
+    {
+        if (swap_table[i].pid == pid)
+        {
             swap_table[i].pid = -1;
         }
     }
@@ -556,14 +647,66 @@ void print_swap(void)
 
     kprintf("<< SWAP TABLE >>\n");
 
-    for(int i = 0; i < ENTRIES; i++) {
+    for (int i = 0; i < ENTRIES; i++)
+    {
         kprintf("%d -   %d   - %d\n", i, swap_table[i].pid, swap_table[i].page / PAGE_SIZE);
     }
 
     spinlock_release(&swap_lock);
-
 }
 
+void duplicate_swap_pages(pid_t old_pid, pid_t new_pid)
+{
 
+    int result, i, j;
+    paddr_t paddr;
+
+    paddr = as_prepare_load(1);
+
+    spinlock_acquire(&swap_lock);
+    /* page must be in swap file */
+    for (i = 0; i < ENTRIES; i++)
+    {
+        if (swap_table[i].pid == old_pid)
+        {
+            //       kprintf("Duplicating swapped page new PID  %d old pid %d\n", new_pid, old_pid);
+            for (j = 0; j < ENTRIES; j++)
+            {
+                if (swap_table[j].pid == -1)
+                {
+                    //            kprintf("-------Duplicating start\n");
+                    swap_table[j].pid = new_pid;
+                    swap_table[j].page = swap_table[i].page;
+                    print_swap_internal();
+                    spinlock_release(&swap_lock);
+
+                    result = file_read_paddr(v, paddr, PAGE_SIZE, i * PAGE_SIZE);
+                    if (result != PAGE_SIZE)
+                    {
+                        panic("Unable to read page from swap file");
+                    }
+                    result = file_write_paddr(v, paddr, PAGE_SIZE, j * PAGE_SIZE);
+                    if (result != PAGE_SIZE)
+                    {
+                        panic("Unable to swap page out for fork");
+                    }
+                    spinlock_acquire(&swap_lock);
+                    //           kprintf("-------Duplicating end\n");
+
+                    KASSERT(result >= 0);
+                    break;
+                }
+            }
+            if (j == ENTRIES)
+            {
+                panic("Swap file is full");
+            }
+        }
+    }
+    spinlock_release(&swap_lock);
+    freeppages(paddr, paddr / PAGE_SIZE);
+}
 
 #endif
+
+// TO DO: Why swap table has entry at -2

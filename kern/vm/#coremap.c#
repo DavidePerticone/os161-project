@@ -20,34 +20,55 @@
 #include <item.h>
 #include "opt-paging.h"
 
+
+static void SetBit(int *A, int k)
+{
+
+    A[k / 32] |= 1 << (k % 32); // Set the bit at the k-th position in A[i]
+}
+
+static void ClearBit(int *A, int k)
+{
+
+    A[k / 32] &= ~(1 << (k % 32));
+}
+
+static int TestBit(int *A, int k)
+{
+    if ((A[k / 32] & (1 << (k % 32))) != 0)
+        return 1;
+    else
+        return 0;
+}
+
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static struct spinlock freemem_lock = SPINLOCK_INITIALIZER;
 static int nRamFrames = 0;
-static unsigned char *freeRamFrames = NULL;
+static int *freeRamFrames = NULL;
 static unsigned long *allocSize = NULL;
 
 void print_freeRamFrames(void)
 {
     int i;
-        kprintf("Frame Status\n");
+    kprintf("Frame Status\n");
 
-    for(i=0; i<nRamFrames; i++){
-        kprintf("  %d    %d\n", i, freeRamFrames[i]);
+    for (i = 0; i < nRamFrames; i++)
+    {
+        kprintf("  %d    %d\n", i, TestBit(freeRamFrames, i));
     }
-  
 }
 
 int init_freeRamFrames(int ramFrames)
 {
     int i;
     nRamFrames = ramFrames;
-    freeRamFrames = kmalloc(sizeof(unsigned char) * nRamFrames);
+    freeRamFrames = kmalloc(sizeof(int) * nRamFrames );
     if (freeRamFrames == NULL)
         return 1;
 
     for (i = 0; i < nRamFrames; i++)
     {
-        freeRamFrames[i] = (unsigned char)0;
+        ClearBit(freeRamFrames, i);
     }
 
     return 0;
@@ -81,6 +102,7 @@ getfreeppages(unsigned long npages)
 {
     paddr_t addr;
     long i, first, found, np = (long)npages;
+    int result;
 
     if (!isTableActive())
         return 0;
@@ -88,32 +110,11 @@ getfreeppages(unsigned long npages)
 
     for (i = 0, first = found = -1; i < nRamFrames; i++)
     {
-        if (freeRamFrames[i])
+        result = TestBit(freeRamFrames, i);
+        if (result)
         {
-            if (i == 0 || !freeRamFrames[i - 1])
-                first = i; /* set first free in an interval */
-            if (i - first + 1 >= np)
-            {
-                found = first;
-                break;
-            }
-        }
-    }
-
-    if (found >= 0)
-    {
-        if (addr != 0)
-            {
-                addr=0;
-            }
-        addr = (paddr_t)found * PAGE_SIZE;
-    }
-
-for (i = 0, first = found = -1; i < nRamFrames; i++)
-    {
-        if (freeRamFrames[i])
-        {
-            if (i == 0 || !freeRamFrames[i - 1])
+            result = TestBit(freeRamFrames, i - 1);
+            if (i == 0 || !result)
                 first = i; /* set first free in an interval */
             if (i - first + 1 >= np)
             {
@@ -127,7 +128,7 @@ for (i = 0, first = found = -1; i < nRamFrames; i++)
     {
         for (i = found; i < found + np; i++)
         {
-            freeRamFrames[i] = (unsigned char)0;
+            ClearBit(freeRamFrames, i);
         }
         allocSize[found] = np;
         addr = (paddr_t)found * PAGE_SIZE;
@@ -166,9 +167,7 @@ getppages(unsigned long npages, int kmem)
         paddr = ram_stealmem(npages);
         spinlock_release(&stealmem_lock);
     }
-    else
-    {
-    }
+
     if (paddr != 0 && isTableActive())
     {
         spinlock_acquire(&freemem_lock);
@@ -178,22 +177,29 @@ getppages(unsigned long npages, int kmem)
 
     if (paddr == 0 && isTableActive())
     {
-        int i;
-        kprintf("Frame Status\n");
-
-    for(i=0; i<nRamFrames; i++){
-        kprintf("  %d    %d\n", i, freeRamFrames[i]);
-    }
+        spinlock_acquire(&freemem_lock);
         /* we can only get one page at a time, otherwise in case of swap problems occur */
         if (!kmem)
         {
             KASSERT(npages == 1);
+             pid_victim=0;
+        }else{
+            pid_victim=1;
+        }
+        if (paddr == 0 && kmem && npages!=1)
+        {
+            panic("No contiguous %ld free ram frames for kernel allocation", npages);
         }
         /* get physical and virtual address of victmim */
-        paddr = get_victim(&vaddr, &pid_victim);
+        if(kmem){
+        kprintf("KMEM %d PID %d\n", kmem, curproc->p_pid);
+        }
+        paddr = get_victim(&vaddr, &pid_victim, kmem);
         /* no victim found */
-        if (paddr == 0)
+        if (paddr == 0)p
         {
+            
+           
             panic("It was not possible to find a page victim.\nAre you allocating more kernel memory than the available ram size?");
         }
         /* get address space of the process whose page is the victim */
@@ -201,9 +207,8 @@ getppages(unsigned long npages, int kmem)
         /* get in which segment the page is */
         victim_segment = address_segment(vaddr, as_victim);
         /* swap page out */
-        result = swap_out(paddr, vaddr, victim_segment);
-        /* delete entry from hash */
-        hash_delete(pid_victim, vaddr);
+        spinlock_release(&freemem_lock);
+        result = swap_out(paddr, vaddr, victim_segment, pid_victim);
         if (result)
         {
             return 0;
@@ -211,7 +216,9 @@ getppages(unsigned long npages, int kmem)
     }
 
     KASSERT(paddr != 0);
-    as_zero_region(paddr, npages);
+    as_zero_region(paddr, npages);     
+    
+
     return paddr;
 }
 
@@ -228,10 +235,11 @@ int freeppages(paddr_t addr, long first_page)
     spinlock_acquire(&freemem_lock);
     for (i = first; i < first + np; i++)
     {
-        freeRamFrames[i] = (unsigned char)1;
+        SetBit(freeRamFrames, i);
     }
+    // print_freeRamFrames();
 
     spinlock_release(&freemem_lock);
 
-    return 1;
+    return (int)np;
 }

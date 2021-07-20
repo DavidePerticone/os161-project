@@ -350,6 +350,7 @@ makeprocs(bool dowait)
 				semV(&s1, 1);
 				semclose(&s1);
 			}
+		
 		}
 		if (pids[i]==0) {
 			/* child */
