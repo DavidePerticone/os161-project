@@ -3,7 +3,7 @@
 TOP=../../..
 .include "$(TOP)/mk/os161.config.mk"
 
-PROG=matmult
+PROG=matmult_swaptest
 SRCS=matmult_swaptest.c
 BINDIR=/testbin
 
