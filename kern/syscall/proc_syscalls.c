@@ -59,7 +59,7 @@ void sys__exit(int status)
   print_ipt();
   print_freeRamFrames();
   hash_print();
- // print_swap();
+  print_swap();
 #endif
   thread_exit();
   
