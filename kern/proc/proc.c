@@ -187,6 +187,10 @@ proc_create(const char *name)
 	/* status init */
 	proc->finish = 0;
 
+	#if OPT_PAGING
+	proc->last_victim=-1;
+	#endif
+
 	proc_init_waitpid(proc, name);
 
 #if OPT_PAGING

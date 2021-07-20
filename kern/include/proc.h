@@ -86,6 +86,7 @@ struct proc
 #if OPT_PAGING
 	Elf_Ehdr p_eh;
 	struct openfile *fileTable[OPEN_MAX];
+	int last_victim;
 #endif
 };
 

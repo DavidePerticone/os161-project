@@ -709,4 +709,3 @@ void duplicate_swap_pages(pid_t old_pid, pid_t new_pid)
 
 #endif
 
-// TO DO: Why swap table has entry at -2

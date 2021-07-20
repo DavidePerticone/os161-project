@@ -1,7 +1,3 @@
-/* 
-TODO: insert locks for tlb modification
-*/
-
 #include <vm_tlb.h>
 #include <types.h>
 #include <kern/errno.h>
