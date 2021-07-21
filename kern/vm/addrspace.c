@@ -180,6 +180,7 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
 
   /* Copy the address space */
 
+
   KASSERT(old != NULL);
   KASSERT(old->as_vbase1 != 0);
   KASSERT(old->as_npages1 > 0);
@@ -190,6 +191,7 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
   newas->as_npages1 = old->as_npages1;
   newas->as_vbase2 = old->as_vbase2;
   newas->as_npages2 = old->as_npages2;
+  
 
   /* 
    * Look in the IPT to see if there are pages to copy 
@@ -197,7 +199,7 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
    */
 
   /* Looking for data pages */
-  for (i = 0; i < (int)newas->as_npages2; i++)
+  for(i = 0; i < (int)newas->as_npages2; i++)
   {
     result = ipt_lookup(old_pid, newas->as_vbase2 + i * PAGE_SIZE);
     if (result)

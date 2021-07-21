@@ -484,7 +484,9 @@ proc_search_pid(pid_t pid)
 #if OPT_WAITPID
 	struct proc *p;
 	KASSERT(pid >= 0 && pid < MAX_PROC);
+	spinlock_acquire(&processTable.lk);
 	p = processTable.proc[pid];
+	spinlock_release(&processTable.lk);
 	KASSERT(p->p_pid == pid);
 	return p;
 #else

@@ -25,81 +25,95 @@
 static struct spinlock tlb_fault_lock = SPINLOCK_INITIALIZER;
 
 #if OPT_TLB
-static void update_tlb(vaddr_t faultaddress, paddr_t paddr, pid_t pid)
+static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 {
-	(void)pid;
+	pid_t pid;
 	int i;
 	int victim;
-	int spl;
-		uint32_t ehi, elo;
+	int spl; //, tlb_entry;
+	uint32_t ehi, elo;
+	uint32_t ehi1, elo1;
+
+	spl = splhigh();
+	
+	/*tlb_entry = tlb_probe((faultaddress & ~TLBHI_PID) | curproc->p_pid << 6, 0);
+	if(tlb_entry>=0){
+		return;
+	}*/
+
+	pid = curproc->p_pid;
+
+	if (address_segment(faultaddress, curproc->p_addrspace) == -1)
+	{
+		ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
+		elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;
+	}
+	else
+	{
+
+		ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
+		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
+	}
 
 	/* Disable interrupts on this CPU while frobbing the TLB. */
-	spl = splhigh();
 
 	/* add entry in the TLB */
 	for (i = 0; i < NUM_TLB; i++)
 	{
-		tlb_read(&ehi, &elo, i);
-		if (elo & TLBLO_VALID)
+		tlb_read(&ehi1, &elo1, i);
+		if (elo1 & TLBLO_VALID)
 		{
 			continue;
 		}
 
 		increase(TLB_MISS_FREE);
-		ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
-
-		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
-		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, i);
 
-		break;
+		splx(spl);
+		return;
 	}
 	/* if all entry are occupied, find a victim and replace it */
 	if (i == NUM_TLB)
 	{
-
-		/*select a victim to be replaced*/
 		victim = tlb_get_rr_victim();
-
-		ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
-		;
-		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
-		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, victim);
 	}
 	splx(spl);
 }
 #else
-static void update_tlb(vaddr_t faultaddress, paddr_t paddr, int read_only)
+static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 {
 
 	int i;
 	uint32_t ehi, elo;
+	uint32_t ehi1, elo1;
 	int victim;
 	int spl;
 	/* Disable interrupts on this CPU while frobbing the TLB. */
+
+	ehi = faultaddress;
+
+	if (address_segment(faultaddress, curproc->p_addrspace) == 1)
+	{
+		elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
+	}
+	else
+	{
+		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+	}
+
 	spl = splhigh();
 
 	/* add entry in the TLB */
 	for (i = 0; i < NUM_TLB; i++)
 	{
-		tlb_read(&ehi, &elo, i);
+		tlb_read(&ehi1, &elo1, i);
 		if (elo & TLBLO_VALID)
 		{
 			continue;
 		}
 
 		increase(TLB_MISS_FREE);
-		ehi = faultaddress;
-		if (read_only)
-		{
-			elo = (paddr & ~TLBLO_DIRTY) | TLBLO_VALID;
-		}
-		else
-		{
-			elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-		}
-		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, i);
 
 		break;
@@ -109,10 +123,6 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr, int read_only)
 	{
 		/*select a victim to be replaced*/
 		victim = tlb_get_rr_victim();
-
-		ehi = faultaddress;
-		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
-		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, victim);
 	}
 	splx(spl);
@@ -170,13 +180,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 {
 	paddr_t paddr;
 	struct addrspace *as;
-	int spl;
 	int segment;
 	int result;
-#if OPT_TLB
-	int pid;
-	pid = curproc->p_pid;
-#endif
 
 	faultaddress &= PAGE_FRAME;
 
@@ -223,8 +228,12 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 	segment = address_segment(faultaddress, as);
 	if (segment == EFAULT)
 	{
-		//print_ipt();
 		kprintf("PID: %d\n", curproc->p_pid);
+		kprintf("SEGMENTATION FAULT: process exited\n");
+		sys__exit(-1);
+
+		/* should not get here */
+		panic("VM: got SEGMENTATION FAULT, should not get here\n");
 		return EFAULT;
 	}
 
@@ -242,27 +251,27 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		/* are we in code or data segment? then, we should load the needed page */
 		if (segment == 1 || segment == 2)
 		{
-			/* page_offset_from_segbase will store the offset of the desired page from the offset of the segment */
+			/* 
+			 * page_offset_from_segbase will store the offset of the desired page 
+			 * from the offset of the segment 
+			 */
 			vaddr_t page_offset_from_segbase;
-			/* faultaddress is at page multiple, if we subtract the segment address we find the offset from the segment base */
+			/* 
+			 * faultaddress is at page multiple, if we subtract the segment address 
+			 * we find the offset from the segment base 
+			 */
 			page_offset_from_segbase = faultaddress - (segment == 1 ? as->as_vbase1 : as->as_vbase2);
 			spinlock_release(&tlb_fault_lock);
 
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 
 			paddr = as_prepare_load(1);
-
-			spinlock_acquire(&tlb_fault_lock);
-
-			/* TODO should invalidate the TLB entry of gotten page ? */
-
 			KASSERT(paddr != 0);
 
 			/* make sure it's page-aligned */
 			KASSERT((paddr & PAGE_FRAME) == paddr);
 
 			/* look in the swapfile (if the faulting address is not in code segment) */
-			spinlock_release(&tlb_fault_lock);
 
 			if (segment != 1)
 			{
@@ -291,43 +300,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			{
 				return -1;
 			}
-			/* after loading the page, set the entry to READ_ONLY in case of code page */
-			if (segment == 1)
-			{
-				/* Disable interrupts on this CPU while frobbing the TLB. */
-				spl = splhigh();
 
-#if OPT_TLB
-				uint32_t ehi, elo;
-				ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
-				elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;
+			update_tlb(faultaddress, paddr);
 
-				tlb_random(ehi, elo);
-				spinlock_release(&tlb_fault_lock);
-				splx(spl);
-
-				return 0;
-
-#else
-
-				update_tlb(faultaddress, paddr, 1);
-				spinlock_release(&tlb_fault_lock);
-				splx(spl);
-
-				return 0;
-
-#endif
-			}
-			else
-			{
-
-#if OPT_TLB
-				update_tlb(faultaddress, paddr, pid);
-
-#else
-				update_tlb(faultaddress, paddr, 0);
-#endif
-			}
 			spinlock_release(&tlb_fault_lock);
 
 			return 0;
@@ -339,6 +314,9 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			/* as_prepare_load is a wrapper for getppages() -> will allocate a page and return the offset */
 			paddr = as_prepare_load(1);
 
+			/* make sure it's page-aligned */
+			KASSERT((paddr & PAGE_FRAME) == paddr);
+
 			result = swap_in(faultaddress, paddr);
 			if (result)
 			{
@@ -347,9 +325,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 			spinlock_acquire(&tlb_fault_lock);
 
 			KASSERT(paddr != 0);
-			/* 
-			 * 
-			 */
+		
 			result = ipt_add(curproc->p_pid, paddr, faultaddress);
 
 			if (result)
@@ -357,13 +333,7 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 				return -1;
 			}
 
-			/* make sure it's page-aligned */
-			KASSERT((paddr & PAGE_FRAME) == paddr);
-#if OPT_TLB
-			update_tlb(faultaddress, paddr, pid);
-#else
-			update_tlb(faultaddress, paddr, 0);
-#endif
+			update_tlb(faultaddress, paddr);
 
 			spinlock_release(&tlb_fault_lock);
 		}
@@ -376,9 +346,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress)
 		increase(TLB_RELOAD);
 		/* make sure it's page-aligned */
 		KASSERT((paddr & PAGE_FRAME) == paddr);
-
-		update_tlb(faultaddress, paddr, segment == 1);
-
+		
+		update_tlb(faultaddress, paddr);
 		spinlock_release(&tlb_fault_lock);
 
 		return 0;

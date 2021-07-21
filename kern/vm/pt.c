@@ -83,14 +83,14 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             /* free tlb entry */
             spl = splhigh();
 #if OPT_TLB
-            tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | *pid << 6, 0);
+            tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | curproc->p_pid << 6, 0);
 #else
             tlb_entry = tlb_probe(ipt[i].vaddr, 0);
 #endif
             /* if victim page is in the tlb, invalidate the entry */
             if (tlb_entry >= 0)
             {
-                tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
+               tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
             }
             splx(spl);
 

@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "instrumentation.h": "c"
+        "instrumentation.h": "c",
+        "fcntl.h": "c"
     }
 }
