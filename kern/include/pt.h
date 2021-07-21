@@ -22,7 +22,6 @@ vaddr_t vaddr;
 };
 void print_ipt(void);
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid);
-int init_victim(int first_avail_paddress);
 int create_ipt(void);
 
 /* Given a pid and vaddr, get the physical frame, if in memory */

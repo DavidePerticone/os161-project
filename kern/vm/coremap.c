@@ -20,7 +20,6 @@
 #include <item.h>
 #include "opt-paging.h"
 
-//TO DO set length bitmatp
 
 static void SetBit(int *A, int k)
 {
@@ -63,7 +62,7 @@ int init_freeRamFrames(int ramFrames)
 {
     int i;
     nRamFrames = ramFrames;
-    freeRamFrames = kmalloc(sizeof(int) * nRamFrames);
+    freeRamFrames = kmalloc(sizeof(int) * (nRamFrames/sizeof(int)+1));
     if (freeRamFrames == NULL)
         return 1;
 

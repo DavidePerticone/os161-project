@@ -21,11 +21,8 @@
 /* inverted page table */
 static struct ipt_entry *ipt;
 static int nRamFrames;
-static int last_victim;
-static int victim;
 static struct spinlock ipt_lock = SPINLOCK_INITIALIZER;
 static int ipt_active = 0;
-static int first_paddr;
 
 static ST ipt_hash = NULL;
 
@@ -48,16 +45,7 @@ void print_ipt(void)
     //   spinlock_release(&ipt_lock);
 }
 
-int init_victim(int first_avail_paddress)
-{
-    spinlock_acquire(&ipt_lock);
-    KASSERT(ipt_active);
-    last_victim = -1;
-    first_paddr = first_avail_paddress;
-    spinlock_release(&ipt_lock);
 
-    return victim;
-}
 // TO DO implement per process round robin, not global
 /* return the selected victim */
 paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
@@ -68,11 +56,11 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
     KASSERT(ipt_active);
 
     /* for each ram frames */
-    for (int i = last_victim, j = 0; j < nRamFrames; j++, i++)
+    for (int i = curproc->last_victim, j = 0; j < nRamFrames; j++, i++)
     {
         if (i == nRamFrames)
         {
-            last_victim = -1;
+            curproc->last_victim = -1;
             i = 0;
         }
         /* 
@@ -84,7 +72,7 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
         if ((ipt[i].pid == curproc->p_pid))
         {
             /* update last victim: if last frame is selected, start again from the beginning */
-            last_victim = i + 1;
+            curproc->last_victim = i + 1;
             *vaddr = ipt[i].vaddr;
             *pid = ipt[i].pid;
             /* delete entry from hash */
@@ -95,14 +83,14 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             /* free tlb entry */
             spl = splhigh();
 #if OPT_TLB
-            tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | *pid << 6, 0);
+            tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | curproc->p_pid << 6, 0);
 #else
             tlb_entry = tlb_probe(ipt[i].vaddr, 0);
 #endif
             /* if victim page is in the tlb, invalidate the entry */
             if (tlb_entry >= 0)
             {
-                tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
+               tlb_write(TLBHI_INVALID(tlb_entry), TLBLO_INVALID(), tlb_entry);
             }
             splx(spl);
 

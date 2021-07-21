@@ -187,6 +187,10 @@ proc_create(const char *name)
 	/* status init */
 	proc->finish = 0;
 
+	#if OPT_PAGING
+	proc->last_victim=-1;
+	#endif
+
 	proc_init_waitpid(proc, name);
 
 #if OPT_PAGING
@@ -480,7 +484,9 @@ proc_search_pid(pid_t pid)
 #if OPT_WAITPID
 	struct proc *p;
 	KASSERT(pid >= 0 && pid < MAX_PROC);
+	spinlock_acquire(&processTable.lk);
 	p = processTable.proc[pid];
+	spinlock_release(&processTable.lk);
 	KASSERT(p->p_pid == pid);
 	return p;
 #else

@@ -96,7 +96,6 @@ void vm_bootstrap(void)
   /*allocation and deallocation of all ram to avoid using ram_stealmem*/
   firstpaddr = ram_getfirstfreeafterbootstrap(); /* get address of first free page */
   occupiedpages = ((int)firstpaddr) / PAGE_SIZE; /* calculate occupied pages by kernel */
-  init_victim(firstpaddr);                       /* set first victim to the first available page (not used by kernel) */
   freepages = nRamFrames - occupiedpages;        /* calculate free pages remaining*/
   addr = alloc_kpages(freepages);                /*allocate all pages available*/
   free_kpages(addr);                             /* deallocate all pages previously allocated */
@@ -181,6 +180,7 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
 
   /* Copy the address space */
 
+
   KASSERT(old != NULL);
   KASSERT(old->as_vbase1 != 0);
   KASSERT(old->as_npages1 > 0);
@@ -191,6 +191,7 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
   newas->as_npages1 = old->as_npages1;
   newas->as_vbase2 = old->as_vbase2;
   newas->as_npages2 = old->as_npages2;
+  
 
   /* 
    * Look in the IPT to see if there are pages to copy 
@@ -198,7 +199,7 @@ int as_copy(struct addrspace *old, struct addrspace **ret, pid_t old_pid, pid_t 
    */
 
   /* Looking for data pages */
-  for (i = 0; i < (int)newas->as_npages2; i++)
+  for(i = 0; i < (int)newas->as_npages2; i++)
   {
     result = ipt_lookup(old_pid, newas->as_vbase2 + i * PAGE_SIZE);
     if (result)
@@ -366,6 +367,5 @@ int as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 
 void vm_shutdown(void)
 {
-
   print_statistics();
 }

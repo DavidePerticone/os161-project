@@ -669,12 +669,10 @@ void duplicate_swap_pages(pid_t old_pid, pid_t new_pid)
     {
         if (swap_table[i].pid == old_pid)
         {
-            //       kprintf("Duplicating swapped page new PID  %d old pid %d\n", new_pid, old_pid);
             for (j = 0; j < ENTRIES; j++)
             {
                 if (swap_table[j].pid == -1)
                 {
-                    //            kprintf("-------Duplicating start\n");
                     swap_table[j].pid = new_pid;
                     swap_table[j].page = swap_table[i].page;
                     print_swap_internal();
@@ -691,7 +689,6 @@ void duplicate_swap_pages(pid_t old_pid, pid_t new_pid)
                         panic("Unable to swap page out for fork");
                     }
                     spinlock_acquire(&swap_lock);
-                    //           kprintf("-------Duplicating end\n");
 
                     KASSERT(result >= 0);
                     break;
@@ -709,4 +706,3 @@ void duplicate_swap_pages(pid_t old_pid, pid_t new_pid)
 
 #endif
 
-// TO DO: Why swap table has entry at -2

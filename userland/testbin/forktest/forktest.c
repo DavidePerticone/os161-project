@@ -81,9 +81,9 @@ check(void)
 		volatile int seenpid;
 		seenpid = mypid;
 		if (seenpid != getpid()) {
-			errx(1, "pid mismatch (%d, should be %d) "
-			     "- your vm is broken!",
-			     seenpid, getpid());
+			errx(1, "iteartion %d pid mismatch (%d, should be %d) "
+			     "- your vm is broken!\n",
+			     i, seenpid, getpid());
 		}
 	}
 }
