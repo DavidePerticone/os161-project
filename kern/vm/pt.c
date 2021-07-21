@@ -16,7 +16,6 @@
 #include <st.h>
 #include <item.h>
 #include <opt-paging.h>
-#include "opt-tlb.h"
 
 /* inverted page table */
 static struct ipt_entry *ipt;
@@ -82,11 +81,8 @@ paddr_t get_victim(vaddr_t *vaddr, pid_t *pid)
             ipt[i].pid = -2;
             /* free tlb entry */
             spl = splhigh();
-#if OPT_TLB
-            tlb_entry = tlb_probe((ipt[i].vaddr & ~TLBHI_PID) | curproc->p_pid << 6, 0);
-#else
+
             tlb_entry = tlb_probe(ipt[i].vaddr, 0);
-#endif
             /* if victim page is in the tlb, invalidate the entry */
             if (tlb_entry >= 0)
             {

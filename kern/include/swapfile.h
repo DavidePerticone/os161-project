@@ -3,9 +3,10 @@
 
 #include <types.h>
 #include <opt-list.h>
+#include <vm.h>
 
 #define MAX_SIZE 1024 * 1024 * 9
-#define ENTRIES (MAX_SIZE / 4096)
+#define ENTRIES (MAX_SIZE / PAGE_SIZE)
 
 struct swap_entry
 {
