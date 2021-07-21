@@ -51,7 +51,7 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 	for (i = 0; i < NUM_TLB; i++)
 	{
 		tlb_read(&ehi1, &elo1, i);
-		if (elo & TLBLO_VALID)
+		if (elo1 & TLBLO_VALID)
 		{
 			continue;
 		}
