@@ -41,8 +41,7 @@ load_segment(struct addrspace *as, struct vnode *v,
 	paddr_t addr;
 
 	KASSERT(curproc->p_addrspace == as);
-	(void) is_executable;
-
+	(void)is_executable;
 
 	if (filesize > memsize)
 	{
@@ -53,9 +52,9 @@ load_segment(struct addrspace *as, struct vnode *v,
 	DEBUG(DB_EXEC, "ELF: Loading %lu bytes to 0x%lx\n",
 		  (unsigned long)filesize, (unsigned long)vaddr);
 
-	addr=vaddr-(vaddr & PAGE_FRAME)+paddr;
+	addr = vaddr - (vaddr & PAGE_FRAME) + paddr;
 
-	iov.iov_ubase =(userptr_t) PADDR_TO_KVADDR(addr);
+	iov.iov_ubase = (userptr_t)PADDR_TO_KVADDR(addr);
 	iov.iov_len = memsize; // length of the memory space
 	u.uio_iov = &iov;
 	u.uio_iovcnt = 1;
@@ -64,10 +63,6 @@ load_segment(struct addrspace *as, struct vnode *v,
 	u.uio_segflg = UIO_SYSSPACE;
 	u.uio_rw = UIO_READ;
 	u.uio_space = NULL;
-
-
-
- 
 
 	result = VOP_READ(v, &u);
 	if (result)
@@ -195,27 +190,28 @@ int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment, padd
 	 * In the last case, (3), things are easy and similar to (2). The only true difference is that the amount of bytes
 	 * that we read could be less than PAGE_SIZE. For example: 0444 4444 4400. In this case, when reading the last page, we 
 	 * have to read just 44 and not the whole page (which is not present in the file). This can be easily prevented.
-	 */ 
-
+	 */
 
 	/* 
 	 * vaddr is the address of the page where the fault occured, that must be equal to the page-aligned
 	 * starting segment address + the offset from it of the page we want to read.
 	 */
 	KASSERT(vaddr == ((ph.p_vaddr & PAGE_FRAME) + page_offset_from_segbase));
-	
+
 	/* bytes_to_align_first stores the padding bytes (if any) of the first page (example: 00044, it will contain 3) */
 
-	int bytes_to_align_first =  ph.p_vaddr - (ph.p_vaddr & PAGE_FRAME);
+	int bytes_to_align_first = ph.p_vaddr - (ph.p_vaddr & PAGE_FRAME);
 
 	/* if the page we want is greater than the segment size, it means that we have to just allocate an empty page */
+	/* 1111 1111 1111  filesz: 3 memsz: 300 */
+
 	if (page_offset_from_segbase >= ph.p_filesz + bytes_to_align_first)
 	{
 		increase(NEW_PAGE_ZEROED);
 		result = 0;
 	}
 	else /* else, we have to read from file */
-	{	
+	{
 		increase(FAULT_WITH_LOAD);
 		increase(FAULT_WITH_ELF_LOAD);
 
@@ -229,27 +225,34 @@ int load_page(vaddr_t page_offset_from_segbase, vaddr_t vaddr, int segment, padd
 			vaddr = ph.p_vaddr;
 			/* amount of bytes to read */
 
-				if (ph.p_vaddr + ph.p_filesz < (ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE)
+				// 00110 
+			if (ph.p_vaddr + ph.p_filesz < (ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE)
 			{
 				bytes_toread_from_file = ph.p_filesz;
 			}
 			else
-			{
+			{  //00111 11111
 				bytes_toread_from_file = ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
 			}
 		}
 
 		/*
+		 * Last page reading
 		 * if  ph.p_filesz-page (segment size minus offset of page) is less than PAGE_SIZE, 
 		 * read the remaning part (less than PAGE_SIZE)
 		 */
 		else if (bytes_to_align_first + ph.p_filesz - page_offset_from_segbase < PAGE_SIZE)
 		{
-			/* we have to compesate for the possible padding present in the first page */
-			page_offset_from_segbase = page_offset_from_segbase - PAGE_SIZE + ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;
+			/* 
+			 * we have to compesate for the possible padding present in the first page 
+			 * We take offset from the last page we remove the first page and we add only the portion of the 
+			 * first page that is truly present in the file.
+			 * Ex.  0111 1111 1100 -> we have to remove the first 0
+			 */
+			page_offset_from_segbase = page_offset_from_segbase - PAGE_SIZE + (((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr);
 			bytes_toread_from_file = bytes_to_align_first + ph.p_filesz - page_offset_from_segbase;
 		}
-		/* read PAGE_SIZE */
+		/* middle page read PAGE_SIZE */
 		else
 		{
 			page_offset_from_segbase = page_offset_from_segbase - PAGE_SIZE + ((ph.p_vaddr & PAGE_FRAME) + PAGE_SIZE) - ph.p_vaddr;

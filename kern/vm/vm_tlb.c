@@ -36,10 +36,7 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 
 	spl = splhigh();
 	
-	/*tlb_entry = tlb_probe((faultaddress & ~TLBHI_PID) | curproc->p_pid << 6, 0);
-	if(tlb_entry>=0){
-		return;
-	}*/
+	
 
 	pid = curproc->p_pid;
 
