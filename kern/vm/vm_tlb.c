@@ -16,7 +16,6 @@
 #include <swapfile.h>
 #include <syscall.h>
 #include <instrumentation.h>
-#include <opt-tlb.h>
 
 /* under dumbvm, always have 72k of user stack */
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
@@ -24,63 +23,7 @@
 
 static struct spinlock tlb_fault_lock = SPINLOCK_INITIALIZER;
 
-#if OPT_TLB
-static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
-{
-	pid_t pid;
-	int i;
-	int victim;
-	int spl; //, tlb_entry;
-	uint32_t ehi, elo;
-	uint32_t ehi1, elo1;
 
-	spl = splhigh();
-	
-	/*tlb_entry = tlb_probe((faultaddress & ~TLBHI_PID) | curproc->p_pid << 6, 0);
-	if(tlb_entry>=0){
-		return;
-	}*/
-
-	pid = curproc->p_pid;
-
-	if (address_segment(faultaddress, curproc->p_addrspace) == -1)
-	{
-		ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
-		elo = ((paddr & ~TLBLO_DIRTY) | TLBLO_VALID) & ~TLBLO_GLOBAL;
-	}
-	else
-	{
-
-		ehi = (faultaddress & ~TLBHI_PID) | pid << 6;
-		elo = (paddr | TLBLO_DIRTY | TLBLO_VALID) & ~TLBLO_GLOBAL;
-	}
-
-	/* Disable interrupts on this CPU while frobbing the TLB. */
-
-	/* add entry in the TLB */
-	for (i = 0; i < NUM_TLB; i++)
-	{
-		tlb_read(&ehi1, &elo1, i);
-		if (elo1 & TLBLO_VALID)
-		{
-			continue;
-		}
-
-		increase(TLB_MISS_FREE);
-		tlb_write(ehi, elo, i);
-
-		splx(spl);
-		return;
-	}
-	/* if all entry are occupied, find a victim and replace it */
-	if (i == NUM_TLB)
-	{
-		victim = tlb_get_rr_victim();
-		tlb_write(ehi, elo, victim);
-	}
-	splx(spl);
-}
-#else
 static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 {
 
@@ -127,7 +70,7 @@ static void update_tlb(vaddr_t faultaddress, paddr_t paddr)
 	}
 	splx(spl);
 }
-#endif
+
 int address_segment(vaddr_t faultaddress, struct addrspace *as)
 {
 

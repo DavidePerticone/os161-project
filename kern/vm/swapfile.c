@@ -377,7 +377,7 @@ void print_swap(void)
 
     spinlock_release(&swap_lock);
 }
-
+// TO DO: update to new version
 void duplicate_swap_pages(pid_t old_pid, pid_t new_pid)
 {
 

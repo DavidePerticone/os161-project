@@ -240,7 +240,6 @@ int freeppages(paddr_t addr, long first_page)
     {
         SetBit(freeRamFrames, i);
     }
-    // print_freeRamFrames();
 
     spinlock_release(&freemem_lock);
 

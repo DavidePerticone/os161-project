@@ -38,7 +38,6 @@
 #include "opt-dumbvm.h"
 #include "opt-paging.h"
 #include <pt.h>
-#include "opt-tlb.h"
 
 #define DUMBVM_STACKPAGES 18
 
@@ -110,13 +109,16 @@ struct addrspace
  */
 
 struct addrspace *as_create(void);
+#if OPT_PAGING
 int as_copy(struct addrspace *src, struct addrspace **ret, pid_t old_pid, pid_t new_pid);
-void as_activate(void);
-#if OPT_TLB
-void as_deactivate(pid_t pid);
 #else
-void as_deactivate(void);
+int as_copy(struct addrspace *src, struct addrspace **ret);
+
 #endif
+void as_activate(void);
+
+void as_deactivate(void);
+
 void as_destroy(struct addrspace *);
 
 int as_define_region(struct addrspace *as,
@@ -141,7 +143,6 @@ int as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
  */
 
 int load_elf(struct vnode *v, vaddr_t *entrypoint);
-
 
 void dump_pages(vaddr_t vaddr, int npages);
 

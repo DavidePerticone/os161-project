@@ -185,7 +185,9 @@ proc_create(const char *name)
 	proc->p_cwd = NULL;
 
 	/* status init */
+	#if OPT_WAITPID
 	proc->finish = 0;
+	#endif
 
 	#if OPT_PAGING
 	proc->last_victim=-1;
@@ -268,15 +270,10 @@ void proc_destroy(struct proc *proc)
 		 * random other process while it's still running...
 		 */
 		struct addrspace *as;
-#if OPT_TLB
-		as_deactivate(proc->p_pid);
-#endif
+
 		if (proc == curproc)
 		{
-#if !OPT_TLB
 			as_deactivate();
-#endif
-			
 			as = proc_setas(NULL);
 		}
 		else

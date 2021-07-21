@@ -463,11 +463,11 @@ optfile paging syscall/proc_syscalls.c
 
 ########################################
 #                                      #
-#           PID IN PROCESS             #
+#      PID AND FORK IN PROCESS         #
 #                                      #
 ########################################
 defoption waitpid
-
+defoption fork
 
 ########################################
 #                                      #
@@ -484,6 +484,5 @@ defoption synch
 ########################################
 defoption list
 
-defoption tlb
 
-defoption fork
+

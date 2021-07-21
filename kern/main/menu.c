@@ -97,9 +97,9 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	{
 		kprintf("Running program %s failed: %s\n", args[0],
 				strerror(result));
-		
+		#if OPT_PAGING
 			sys__exit(-1);
-		
+		#endif
 		
 		return;
 	}
