@@ -13,43 +13,43 @@ Pietro Macori s283421
 
 
 # **Contents**
-` `TOC \h \u \z [**Overview](#_klmiiv35sfej)**	 PAGEREF \_klmiiv35sfej \h **2**
+Overview
 
-[Objectives Completed:](#_68ltt2j8t1sr)	 PAGEREF \_68ltt2j8t1sr \h 2
+Objectives Completed
 
-[Options available for conditional compilation (in conf/conf.kern):](#_1zr4eb3avvx3)	 PAGEREF \_1zr4eb3avvx3 \h 2
+Options available for conditional compilation (in conf/conf.kern)
 
-[Kernel versions:](#_nm3k75o46xyw)	 PAGEREF \_nm3k75o46xyw \h 2
+Kernel versions
 
-[Tests:](#_k4x2icsfuv7u)	 PAGEREF \_k4x2icsfuv7u \h 2
+Tests
 
-[**Project Implementation](#_nckiopykxlog)**	 PAGEREF \_nckiopykxlog \h **4**
+Project Implementation
 
-[Hashed Inverted Page Table (vm/pt.c)](#_btsbvezgtuer)	 PAGEREF \_btsbvezgtuer \h 4
+Hashed Inverted Page Table (vm/pt.c)
 
-[Hash table for IPT (hash/st.c & hash/item.c)](#_vusj0a4p1p5s)	 PAGEREF \_vusj0a4p1p5s \h 4
+Hash table for IPT (hash/st.c & hash/item.c)
 
-[IPT victim selection](#_awcv1lhra83z)	 PAGEREF \_awcv1lhra83z \h 5
+IPT victim selection
 
-[TLB (vm/vm_tlb.c)](#_gvgm9ns2a224)	 PAGEREF \_gvgm9ns2a224 \h 5
+TLB (vm/vm_tlb.c)
 
-[TLB replacement](#_1yo0f7fbk54z)	 PAGEREF \_1yo0f7fbk54z \h 6
+TLB replacement
 
-[TLB miss management.](#_9b0mes6pcqpz)	 PAGEREF \_9b0mes6pcqpz \h 6
+TLB miss management.
 
-[Physical Memory Management (vm/coremap.c)](#_qscfmfkbgfbe)	 PAGEREF \_qscfmfkbgfbe \h 7
+Physical Memory Management (vm/coremap.c)
 
-[On-Demand Page Loading (vm/segments.c)](#_he8002ooz0uw)	 PAGEREF \_he8002ooz0uw \h 9
+On-Demand Page Loading (vm/segments.c)
 
-[Virtual Memory Manager (vm/addrspace.c)](#_dost88qdwv9p)	 PAGEREF \_dost88qdwv9p \h 11
+Virtual Memory Manager (vm/addrspace.c)
 
-[Page replacement (vm/swapfile.c)](#_80pfoffuyq2p)	 PAGEREF \_80pfoffuyq2p \h 12
+Page replacement (vm/swapfile.c)
 
-[Instrumentation (vm/instrumentation.c)](#_dxjgy5zd7ygw)	 PAGEREF \_dxjgy5zd7ygw \h 14
+Instrumentation (vm/instrumentation.c)
 
-[**Workload division](#_8pz0922v5lqv)**	 PAGEREF \_8pz0922v5lqv \h **16**
+Workload division
 
-[**Conclusions](#_682qxni9w0c7)**	 PAGEREF \_682qxni9w0c7 \h **17**
+Conclusions
 
 
 
