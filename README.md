@@ -13,43 +13,43 @@ Pietro Macori s283421
 
 
 # **Contents**
-Overview
+**Overview**
 
-Objectives Completed
+**Objectives Completed**
 
-Options available for conditional compilation (in conf/conf.kern)
+**Options available for conditional compilation (in conf/conf.kern)**
 
-Kernel versions
+**Kernel versions**
 
-Tests
+**Tests**
 
-Project Implementation
+**Project Implementation**
 
-Hashed Inverted Page Table (vm/pt.c)
+**Hashed Inverted Page Table (vm/pt.c)**
 
-Hash table for IPT (hash/st.c & hash/item.c)
+**Hash table for IPT (hash/st.c & hash/item.c)**
 
-IPT victim selection
+**IPT victim selection**
 
-TLB (vm/vm_tlb.c)
+**TLB (vm/vm_tlb.c)**
 
-TLB replacement
+**TLB replacement**
 
-TLB miss management.
+**TLB miss management.**
 
-Physical Memory Management (vm/coremap.c)
+**Physical Memory Management (vm/coremap.c)**
 
-On-Demand Page Loading (vm/segments.c)
+**On-Demand Page Loading (vm/segments.c)**
 
-Virtual Memory Manager (vm/addrspace.c)
+**Virtual Memory Manager (vm/addrspace.c)**
 
-Page replacement (vm/swapfile.c)
+**Page replacement (vm/swapfile.c)**
 
-Instrumentation (vm/instrumentation.c)
+**Instrumentation (vm/instrumentation.c)**
 
-Workload division
+**Workload division**
 
-Conclusions
+**Conclusions**
 
 
 
